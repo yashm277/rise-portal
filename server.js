@@ -7,7 +7,8 @@ const cors = require('cors');
 const fetch = require('node-fetch');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3002;
+console.log('🔧 PORT configured as:', PORT);
 
 // ========================================
 // MIDDLEWARE
@@ -15,7 +16,8 @@ const PORT = process.env.PORT || 3000;
 // CORS configuration for React frontend
 app.use(cors({
     origin: [
-        'http://localhost:5173', // Local React dev server
+        'http://localhost:3000', // Local React dev server (updated port)
+        'http://localhost:5173', // Old Vite default port (keep for compatibility)
         'https://riseresearch.vercel.app', // Production frontend (correct URL)
         'https://rise-research-xa8a.vercel.app', // Old URL (keep for now)
         'https://*.vercel.app' // Allow all Vercel preview deployments
@@ -33,6 +35,17 @@ const CONTACT_BASE_ID = process.env.CONTACT_BASE_ID; // Contact base for authent
 const INVOICING_BASE_ID = process.env.INVOICING_BASE_ID; // Invoicing base for classes
 const REPORTS_BASE_ID = process.env.REPORTS_BASE_ID; // Reports base for student reports
 const REPORTS_TABLE_ID = process.env.REPORTS_TABLE_ID; // Student Reports table
+
+// Scheduling configuration
+const SCHEDULE_BASE_ID = process.env.SCHEDULE_BASE_ID; // Scheduling base
+const SCHEDULING_MAIN_TABLE_ID = process.env.SCHEDULING_MAIN_TABLE_ID; // Main scheduling table
+const TIMINGS_TABLE_ID = process.env.TIMINGS_TABLE_ID; // Timings table
+
+// Debug: Log environment variables on startup
+console.log('🔧 Environment Variables Check:');
+console.log(`   SCHEDULE_BASE_ID: ${SCHEDULE_BASE_ID ? '✅ Set' : '❌ Missing'}`);
+console.log(`   SCHEDULING_MAIN_TABLE_ID: ${SCHEDULING_MAIN_TABLE_ID ? '✅ Set' : '❌ Missing'}`);
+console.log(`   TIMINGS_TABLE_ID: ${TIMINGS_TABLE_ID ? '✅ Set' : '❌ Missing'}`);
 
 // Table names for authentication (in CONTACT_BASE_ID)
 const AUTH_TABLES = ['Students', 'Parents', 'Mentors', 'Writing Coaches', 'Team'];
@@ -57,6 +70,21 @@ app.get('/api/health', (req, res) => {
     status: 'ok', 
     message: 'RISE Research Backend Server is running',
     timestamp: new Date().toISOString()
+  });
+});
+
+// Debug endpoint to check environment variables
+app.get('/api/debug/env', (req, res) => {
+  const maskValue = (value) => value ? `${value.substring(0, 8)}...` : 'Missing';
+  
+  res.json({
+    CONTACT_BASE_ID: CONTACT_BASE_ID ? '✅ Set: ' + maskValue(CONTACT_BASE_ID) : '❌ Missing',
+    INVOICING_BASE_ID: INVOICING_BASE_ID ? '✅ Set: ' + maskValue(INVOICING_BASE_ID) : '❌ Missing',
+    SCHEDULE_BASE_ID: SCHEDULE_BASE_ID ? '✅ Set: ' + maskValue(SCHEDULE_BASE_ID) : '❌ Missing',
+    SCHEDULING_MAIN_TABLE_ID: SCHEDULING_MAIN_TABLE_ID ? '✅ Set: ' + maskValue(SCHEDULING_MAIN_TABLE_ID) : '❌ Missing',
+    TIMINGS_TABLE_ID: TIMINGS_TABLE_ID ? '✅ Set: ' + maskValue(TIMINGS_TABLE_ID) : '❌ Missing',
+    AIRTABLE_TOKEN: AIRTABLE_TOKEN ? '✅ Set: ' + maskValue(AIRTABLE_TOKEN) : '❌ Missing',
+    NODE_ENV: process.env.NODE_ENV || 'development'
   });
 });
 
@@ -893,6 +921,458 @@ app.get('/api/pending-reports', async (req, res) => {
     res.status(500).json({
       error: 'Failed to fetch pending reports',
       message: error.message
+    });
+  }
+});
+
+// ========================================
+// SCHEDULING ENDPOINTS
+// ========================================
+
+// POST: Check if student is eligible for scheduling
+app.post('/api/check-student-eligibility', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Email is required' 
+      });
+    }
+    
+    console.log(`🔍 Checking student eligibility for: ${email}`);
+    console.log(`📋 Using SCHEDULE_BASE_ID: ${SCHEDULE_BASE_ID || 'UNDEFINED'}`);
+    console.log(`📋 Using SCHEDULING_MAIN_TABLE_ID: ${SCHEDULING_MAIN_TABLE_ID || 'UNDEFINED'}`);
+    console.log(`📋 Using TIMINGS_TABLE_ID: ${TIMINGS_TABLE_ID || 'UNDEFINED'}`);
+    
+    // Check if environment variables are set
+    if (!SCHEDULE_BASE_ID || !SCHEDULING_MAIN_TABLE_ID || !TIMINGS_TABLE_ID) {
+      console.error('❌ Missing environment variables');
+      console.error(`   SCHEDULE_BASE_ID: ${SCHEDULE_BASE_ID || 'UNDEFINED'}`);
+      console.error(`   SCHEDULING_MAIN_TABLE_ID: ${SCHEDULING_MAIN_TABLE_ID || 'UNDEFINED'}`);
+      console.error(`   TIMINGS_TABLE_ID: ${TIMINGS_TABLE_ID || 'UNDEFINED'}`);
+      return res.status(400).json({
+        success: false,
+        message: 'Server configuration error - missing scheduling database credentials. Please check environment variables.'
+      });
+    }
+    
+    // Fetch from SCHEDULING_MAIN_TABLE_ID
+    const url = `https://api.airtable.com/v0/${SCHEDULE_BASE_ID}/${SCHEDULING_MAIN_TABLE_ID}`;
+    console.log(`🌐 API URL: ${url}`);
+    
+    const filterFormula = `{Student Email}="${email}"`;
+    console.log(`🔍 Filter formula: ${filterFormula}`);
+    
+    const response = await fetch(`${url}?filterByFormula=${encodeURIComponent(filterFormula)}`, {
+      headers: getHeaders()
+    });
+    
+    console.log(`📡 Airtable response status: ${response.status}`);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`❌ Airtable API error: ${response.status} - ${errorText}`);
+      throw new Error(`Airtable API error: ${response.status} - ${errorText}`);
+    }
+    
+    const data = await response.json();
+    console.log(`📊 Records found: ${data.records ? data.records.length : 0}`);
+    
+    if (data.records && data.records.length > 0) {
+      const studentRecord = data.records[0];
+      console.log('📝 Student record fields:', Object.keys(studentRecord.fields));
+      
+      const studentData = {
+        programId: studentRecord.fields['Program ID'] || 'Unknown',
+        studentName: studentRecord.fields['Student Name'] || 'Unknown',
+        studentEmail: studentRecord.fields['Student Email'] || email
+      };
+      
+      console.log('✅ Student found:', studentData);
+      
+      // Now check if student has ANY existing booking that would prevent new booking
+      console.log('🔍 Checking if student has any existing bookings...');
+      
+      // Check TIMINGS table for ANY existing submission for this student
+      const timingsUrl = `https://api.airtable.com/v0/${SCHEDULE_BASE_ID}/${TIMINGS_TABLE_ID}`;
+      const timingsFilter = `{Student Name}="${studentData.studentName}"`;
+      
+      console.log(`🔍 Checking timings with filter: ${timingsFilter}`);
+      
+      const timingsResponse = await fetch(`${timingsUrl}?filterByFormula=${encodeURIComponent(timingsFilter)}`, {
+        headers: getHeaders()
+      });
+      
+      if (timingsResponse.ok) {
+        const timingsData = await timingsResponse.json();
+        console.log(`📊 Total availability records found: ${timingsData.records ? timingsData.records.length : 0}`);
+        
+        if (timingsData.records && timingsData.records.length > 0) {
+          // Find the most recent booking
+          const sortedRecords = timingsData.records.sort((a, b) => {
+            // Sort by Week (latest first), then by Created Time (latest first)
+            const weekComparison = (b.fields.Week || '').localeCompare(a.fields.Week || '');
+            if (weekComparison !== 0) return weekComparison;
+            return new Date(b.createdTime) - new Date(a.createdTime);
+          });
+          
+          const latestRecord = sortedRecords[0];
+          const existingWeek = latestRecord.fields.Week;
+          
+          console.log(`📅 Latest existing booking week: ${existingWeek}`);
+          
+          if (existingWeek) {
+            // Parse the existing week to get start date
+            const weekParts = existingWeek.split(' to ');
+            if (weekParts.length === 2) {
+              const existingStartDate = new Date(weekParts[0] + 'T00:00:00Z');
+              const todayUTC = new Date(new Date().toISOString().split('T')[0] + 'T00:00:00Z');
+              
+              console.log(`🔍 Existing booking start: ${existingStartDate.toISOString().split('T')[0]}`);
+              console.log(`🔍 Today's date: ${todayUTC.toISOString().split('T')[0]}`);
+              
+              // If today is before the existing booking start date, prevent new booking
+              if (todayUTC < existingStartDate) {
+                console.log('❌ Cannot book - today is before existing booking start date');
+                console.log('🔍 Returning availability data:', latestRecord.fields.Availability);
+                console.log('🔍 Availability data length:', latestRecord.fields.Availability?.length || 'undefined');
+                
+                const responseData = {
+                  success: true,
+                  isActiveStudent: true,
+                  studentData: studentData,
+                  hasExistingSubmission: true,
+                  existingAvailability: {
+                    id: latestRecord.id,
+                    week: latestRecord.fields.Week,
+                    availability: latestRecord.fields.Availability,
+                    createdTime: latestRecord.createdTime
+                  },
+                  message: 'You have a future booking. Cannot create duplicate booking.'
+                };
+                
+                console.log('🔍 Full response being sent to frontend:', JSON.stringify(responseData, null, 2));
+                return res.json(responseData);
+              } else {
+                // Today is on or after existing booking start - check if there's a booking for the target week
+                console.log('✅ Today is on/after existing booking - checking target week');
+                
+                // Calculate the target Monday-Sunday week for booking
+                const today = new Date();
+                const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+                let daysUntilMonday;
+                
+                if (currentDay === 0) { // Sunday
+                  daysUntilMonday = 1;
+                } else if (currentDay === 1) { // Monday
+                  daysUntilMonday = 0; // Today is Monday
+                } else { // Tuesday to Saturday
+                  daysUntilMonday = 8 - currentDay; // Days until next Monday
+                }
+                
+                const targetMonday = new Date(today);
+                targetMonday.setUTCDate(today.getUTCDate() + daysUntilMonday);
+                const targetSunday = new Date(targetMonday);
+                targetSunday.setUTCDate(targetMonday.getUTCDate() + 6);
+                
+                const targetWeekRange = `${targetMonday.toISOString().split('T')[0]} to ${targetSunday.toISOString().split('T')[0]}`;
+                console.log(`📅 Target week for booking: ${targetWeekRange}`);
+                
+                // Check if there's already a booking for the target week
+                const targetWeekFilter = `AND({Student Name}="${studentData.studentName}", {Week}="${targetWeekRange}")`;
+                const targetWeekResponse = await fetch(`${timingsUrl}?filterByFormula=${encodeURIComponent(targetWeekFilter)}`, {
+                  headers: getHeaders()
+                });
+                
+                if (targetWeekResponse.ok) {
+                  const targetWeekData = await targetWeekResponse.json();
+                  
+                  if (targetWeekData.records && targetWeekData.records.length > 0) {
+                    console.log('❌ Already has booking for target week');
+                    
+                    return res.json({
+                      success: true,
+                      isActiveStudent: true,
+                      studentData: studentData,
+                      hasExistingSubmission: true,
+                      existingAvailability: {
+                        id: targetWeekData.records[0].id,
+                        week: targetWeekData.records[0].fields.Week,
+                        availability: targetWeekData.records[0].fields.Availability,
+                        createdTime: targetWeekData.records[0].createdTime
+                      },
+                      message: 'You already have availability submitted for this week.'
+                    });
+                  }
+                }
+              }
+            }
+          }
+          
+          console.log('✅ Can book new availability - no conflicts found');
+        }
+        
+        // If we reach here, student has existing bookings but no conflicts for new booking
+        console.log('✅ No conflicts found, allowing new submission');
+        return res.json({
+          success: true,
+          isActiveStudent: true,
+          studentData: studentData,
+          hasExistingSubmission: false
+        });
+      }
+      
+      // No existing submission found at all, allow new submission
+      console.log('✅ No existing submission found, allowing new submission');
+      res.json({
+        success: true,
+        isActiveStudent: true,
+        studentData: studentData,
+        hasExistingSubmission: false
+      });
+    } else {
+      console.log('❌ Student not found in scheduling database');
+      res.json({
+        success: false,
+        message: 'You are not an active student. Kindly contact admin for support.'
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ Error checking student eligibility:', error.message);
+    console.error('❌ Full error:', error);
+    res.status(500).json({
+      success: false,
+      message: `Failed to verify student status: ${error.message}`
+    });
+  }
+});
+
+// POST: Submit student availability
+app.post('/api/submit-availability', async (req, res) => {
+  try {
+    const { programId, studentName, week, availability } = req.body;
+    
+    if (!programId || !studentName || !week || !availability) {
+      return res.status(400).json({
+        success: false,
+        message: 'All fields are required'
+      });
+    }
+    
+    console.log(`📝 Submitting availability for: ${studentName} (${programId})`);
+    console.log(`📋 Using SCHEDULE_BASE_ID: ${SCHEDULE_BASE_ID || 'UNDEFINED'}`);
+    console.log(`📋 Using TIMINGS_TABLE_ID: ${TIMINGS_TABLE_ID || 'UNDEFINED'}`);
+    console.log(`📋 Week: ${week}`);
+    console.log(`📋 Availability length: ${availability.length} characters`);
+    
+    // Check if environment variables are set
+    if (!SCHEDULE_BASE_ID || !TIMINGS_TABLE_ID) {
+      console.error('❌ Missing environment variables for submission');
+      console.error(`   SCHEDULE_BASE_ID: ${SCHEDULE_BASE_ID || 'UNDEFINED'}`);
+      console.error(`   TIMINGS_TABLE_ID: ${TIMINGS_TABLE_ID || 'UNDEFINED'}`);
+      return res.status(400).json({
+        success: false,
+        message: 'Server configuration error - missing scheduling submission credentials.'
+      });
+    }
+    
+    // Create record in TIMINGS_TABLE_ID
+    const url = `https://api.airtable.com/v0/${SCHEDULE_BASE_ID}/${TIMINGS_TABLE_ID}`;
+    console.log(`🌐 Submission URL: ${url}`);
+    
+    const requestBody = {
+      fields: {
+        'Program ID': programId,
+        'Student Name': studentName,
+        'Week': week,
+        'Availability': availability
+      }
+    };
+    
+    console.log('📤 Request payload:', JSON.stringify(requestBody, null, 2));
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(requestBody)
+    });
+    
+    console.log(`📡 Airtable submission response status: ${response.status}`);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`❌ Airtable API error: ${response.status} - ${errorText}`);
+      throw new Error(`Airtable API error: ${response.status} - ${errorText}`);
+    }
+    
+    const data = await response.json();
+    console.log('✅ Availability submitted successfully:', data.id);
+    
+    res.json({
+      success: true,
+      message: 'Availability submitted successfully',
+      recordId: data.id
+    });
+    
+  } catch (error) {
+    console.error('❌ Error submitting availability:', error.message);
+    console.error('❌ Full error:', error);
+    res.status(500).json({
+      success: false,
+      message: `Failed to submit availability: ${error.message}`
+    });
+  }
+});
+
+// ========================================
+// MENTOR SCHEDULE ENDPOINTS
+// ========================================
+
+// GET: Get mentor's program schedules
+app.get('/api/mentor-schedules/:email', async (req, res) => {
+  try {
+    const mentorEmail = req.params.email;
+    
+    if (!mentorEmail) {
+      return res.status(400).json({ 
+        error: 'Invalid request', 
+        message: 'Mentor email is required' 
+      });
+    }
+
+    console.log(`📅 Fetching schedules for mentor: ${mentorEmail}`);
+    console.log(`📋 Using SCHEDULE_BASE_ID: ${SCHEDULE_BASE_ID || 'UNDEFINED'}`);
+    console.log(`📋 Using SCHEDULING_MAIN_TABLE_ID: ${SCHEDULING_MAIN_TABLE_ID || 'UNDEFINED'}`);
+    console.log(`📋 Using TIMINGS_TABLE_ID: ${TIMINGS_TABLE_ID || 'UNDEFINED'}`);
+    
+    // Check if environment variables are set
+    if (!SCHEDULE_BASE_ID || !SCHEDULING_MAIN_TABLE_ID || !TIMINGS_TABLE_ID) {
+      console.error('❌ Missing environment variables for mentor schedules');
+      console.error(`   SCHEDULE_BASE_ID: ${SCHEDULE_BASE_ID || 'UNDEFINED'}`);
+      console.error(`   SCHEDULING_MAIN_TABLE_ID: ${SCHEDULING_MAIN_TABLE_ID || 'UNDEFINED'}`);
+      console.error(`   TIMINGS_TABLE_ID: ${TIMINGS_TABLE_ID || 'UNDEFINED'}`);
+      return res.status(500).json({
+        error: 'Server configuration error',
+        message: 'Missing scheduling database credentials. Please check environment variables.'
+      });
+    }
+
+    // Step 1: Get all program IDs for this mentor from the scheduling main table
+    const schedulingResponse = await fetch(`https://api.airtable.com/v0/${SCHEDULE_BASE_ID}/${SCHEDULING_MAIN_TABLE_ID}`, {
+      headers: {
+        'Authorization': `Bearer ${AIRTABLE_TOKEN}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!schedulingResponse.ok) {
+      throw new Error(`Failed to fetch scheduling data: ${schedulingResponse.status}`);
+    }
+
+    const schedulingData = await schedulingResponse.json();
+    
+    console.log(`📊 Total scheduling records fetched: ${schedulingData.records?.length || 0}`);
+    console.log(`🔍 Looking for mentor email: "${mentorEmail}"`);
+    
+    // Debug: Show first few records to understand the data structure
+    if (schedulingData.records && schedulingData.records.length > 0) {
+      console.log(`📄 Sample record structure:`, JSON.stringify(schedulingData.records[0].fields, null, 2));
+    }
+    
+    // Filter records where Mentor Email matches
+    const mentorPrograms = schedulingData.records
+      .filter(record => {
+        const recordMentorEmail = record.fields['Mentor Email'];
+        console.log(`🔍 Checking record with Mentor Email: "${recordMentorEmail}" vs "${mentorEmail}"`);
+        return recordMentorEmail === mentorEmail;
+      })
+      .map(record => record.fields['Program ID'])
+      .filter(programId => programId); // Remove undefined values
+
+    console.log(`📋 Found ${mentorPrograms.length} programs for mentor: ${mentorPrograms.join(', ')}`);
+
+    if (mentorPrograms.length === 0) {
+      return res.json({
+        success: true,
+        programs: [],
+        message: 'No programs found for this mentor'
+      });
+    }
+
+    // Step 2: Get timings for each program from the TIMINGS table
+    const timingsResponse = await fetch(`https://api.airtable.com/v0/${SCHEDULE_BASE_ID}/${TIMINGS_TABLE_ID}`, {
+      headers: {
+        'Authorization': `Bearer ${AIRTABLE_TOKEN}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!timingsResponse.ok) {
+      throw new Error(`Failed to fetch timings data: ${timingsResponse.status}`);
+    }
+
+    const timingsData = await timingsResponse.json();
+    
+    // Group timings by program ID and find the latest for each program
+    const programSchedules = {};
+    
+    mentorPrograms.forEach(programId => {
+      // Get all timings for this program
+      const programTimings = timingsData.records
+        .filter(record => record.fields['Program ID'] === programId)
+        .map(record => ({
+          id: record.id,
+          programId: record.fields['Program ID'],
+          studentName: record.fields['Student Name'],
+          week: record.fields['Week'],
+          availability: record.fields['Availability'], // Fixed field name
+          createdTime: record.createdTime
+        }));
+
+      if (programTimings.length > 0) {
+        // Sort by Week (latest first), then by Created Time (latest first)
+        programTimings.sort((a, b) => {
+          // First sort by week
+          const weekComparison = (b.week || '').localeCompare(a.week || '');
+          if (weekComparison !== 0) return weekComparison;
+          
+          // If weeks are the same, sort by created time
+          return new Date(b.createdTime) - new Date(a.createdTime);
+        });
+
+        // Take the latest one
+        const latestTiming = programTimings[0];
+        
+        console.log(`🔍 Mentor API - Latest timing availability for program ${programId}:`, latestTiming.availability);
+        console.log(`🔍 Mentor API - Availability length:`, latestTiming.availability?.length || 'undefined');
+        
+        programSchedules[programId] = {
+          programId: programId,
+          studentName: latestTiming.studentName,
+          week: latestTiming.week,
+          availability: latestTiming.availability,
+          createdTime: latestTiming.createdTime,
+          totalSubmissions: programTimings.length
+        };
+      }
+    });
+
+    console.log(`✅ Processed schedules for ${Object.keys(programSchedules).length} programs`);
+
+    res.json({
+      success: true,
+      programs: Object.values(programSchedules),
+      totalPrograms: Object.keys(programSchedules).length
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching mentor schedules:', error.message);
+    res.status(500).json({ 
+      error: 'Failed to fetch mentor schedules', 
+      message: error.message 
     });
   }
 });

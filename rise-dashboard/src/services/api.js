@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // API base URL - update for production deployment
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3002';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -57,6 +57,19 @@ export const invoiceAPI = {
 export const reportsAPI = {
   getPendingReports: () => {
     return apiClient.get('/api/pending-reports');
+  },
+};
+
+// Schedule API
+export const scheduleAPI = {
+  checkStudentEligibility: (email) => {
+    return apiClient.post('/api/check-student-eligibility', { email });
+  },
+  submitAvailability: (availabilityData) => {
+    return apiClient.post('/api/submit-availability', availabilityData);
+  },
+  getMentorSchedules: (email) => {
+    return apiClient.get(`/api/mentor-schedules/${encodeURIComponent(email)}`);
   },
 };
 

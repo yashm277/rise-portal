@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { NavLink } from 'react-router-dom';
-import { FaHome, FaFileInvoiceDollar, FaChartLine, FaCog, FaSignOutAlt, FaBars, FaTimes, FaFileAlt } from 'react-icons/fa';
+import { FaHome, FaFileInvoiceDollar, FaChartLine, FaCog, FaSignOutAlt, FaBars, FaTimes, FaFileAlt, FaCalendarAlt, FaCalendarPlus, FaCalendarCheck, FaChevronDown } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
 import './Sidebar.css';
 
 const Sidebar = () => {
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const [schedulingDropdownOpen, setSchedulingDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
 
   const handleLogout = () => {
     logout();
@@ -19,6 +21,43 @@ const Sidebar = () => {
   const closeSidebar = () => {
     setIsOpen(false);
   };
+
+  const toggleSchedulingDropdown = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSchedulingDropdownOpen(!schedulingDropdownOpen);
+  };
+
+  const closeSchedulingDropdown = () => {
+    setSchedulingDropdownOpen(false);
+  };
+
+  // Check if user role is student or mentor (singular forms)
+  const isStudent = user?.role === 'Student';
+  const isMentor = user?.role === 'Mentor' || user?.role === 'Writing Coach';
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setSchedulingDropdownOpen(false);
+      }
+    };
+
+    if (schedulingDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [schedulingDropdownOpen]);
+
+  // Debug: Log user info
+  console.log('Sidebar Debug - User:', user);
+  console.log('Sidebar Debug - User Role:', user?.role);
+  console.log('Sidebar Debug - isStudent:', isStudent);
+  console.log('Sidebar Debug - isMentor:', isMentor);
 
   return (
     <>
@@ -52,6 +91,49 @@ const Sidebar = () => {
             <FaHome className="nav-icon" />
             <span>Dashboard</span>
           </NavLink>
+          
+          {/* Scheduling Menu - Available for Students and Mentors */}
+          {(isStudent || isMentor) && (
+            <div className="nav-item-dropdown" ref={dropdownRef}>
+              <div className="nav-item dropdown-trigger" onClick={toggleSchedulingDropdown}>
+                <FaCalendarAlt className="nav-icon" />
+                <span>Scheduling</span>
+                <FaChevronDown className={`dropdown-arrow ${schedulingDropdownOpen ? 'open' : ''}`} />
+              </div>
+              
+              {schedulingDropdownOpen && (
+                <div className="dropdown-menu">
+                  {isStudent && (
+                    <NavLink 
+                      to="/scheduling/add" 
+                      className="dropdown-item" 
+                      onClick={(e) => {
+                        closeSchedulingDropdown();
+                        closeSidebar();
+                      }}
+                    >
+                      <FaCalendarPlus className="nav-icon" />
+                      <span>Add Schedule</span>
+                    </NavLink>
+                  )}
+                  {isMentor && (
+                    <NavLink 
+                      to="/scheduling/view" 
+                      className="dropdown-item" 
+                      onClick={(e) => {
+                        closeSchedulingDropdown();
+                        closeSidebar();
+                      }}
+                    >
+                      <FaCalendarCheck className="nav-icon" />
+                      <span>View Schedule</span>
+                    </NavLink>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          
           <NavLink to="/invoicing" className="nav-item" onClick={closeSidebar}>
             <FaFileInvoiceDollar className="nav-icon" />
             <span>Invoicing</span>

@@ -4,6 +4,8 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Invoicing from './pages/Invoicing';
 import Reports from './pages/Reports';
+import AddSchedule from './pages/AddSchedule';
+import ViewSchedule from './pages/ViewSchedule';
 import './styles/apple-theme.css';
 
 // Protected Route Component
@@ -55,6 +57,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <Reports />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/scheduling/add" 
+            element={
+              <ProtectedRoute>
+                <AddSchedule />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/scheduling/view" 
+            element={
+              <ProtectedRoute>
+                <ViewSchedule />
               </ProtectedRoute>
             } 
           />
