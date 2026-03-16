@@ -1,4 +1,22 @@
 /* View Schedule Styles */
+
+/* ─── Content area padding ─── */
+.dashboard-content {
+  flex: 1;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 24px 40px 64px;
+}
+
+@media (max-width: 1023px) {
+  .top-bar {
+    padding-left: 72px !important;
+  }
+  .dashboard-content {
+    padding: 24px 24px 64px;
+  }
+}
+
 .schedule-header {
   display: flex;
   gap: 2rem;
@@ -9,7 +27,7 @@
   background: #FFFFFF;
   border: 1px solid #E5E5E7;
   border-radius: 16px;
-  padding: 1.5rem;
+  padding: 1rem 1.25rem;
   text-align: center;
   min-width: 200px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
@@ -32,7 +50,7 @@
 
 .summary-number {
   margin: 0;
-  font-size: 2.5rem;
+  font-size: 1.8rem;
   font-weight: 700;
   color: #1c7c54;
   line-height: 1;
@@ -56,14 +74,14 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem 2rem;
-  background: #F8F9FA;
-  border-bottom: 1px solid #E5E5E7;
+  padding: 1rem 1.5rem;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-light);
 }
 
 .program-header h3 {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1rem;
   font-weight: 600;
   color: #1D1D1F;
   display: flex;
@@ -129,7 +147,7 @@
 }
 
 .availability-section {
-  padding: 2rem;
+  padding: 1.25rem 1.5rem;
 }
 
 .availability-header {
@@ -141,7 +159,7 @@
 
 .availability-header h4 {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   font-weight: 600;
   color: #1D1D1F;
 }
@@ -171,7 +189,7 @@
   background: linear-gradient(135deg, #1c7c54 0%, #28a36d 100%);
   color: #FFFFFF;
   font-weight: 600;
-  padding: 1rem;
+  padding: 0.625rem 0.875rem;
   text-align: left;
   border-bottom: 1px solid #E5E5E7;
   font-size: 0.85rem;
@@ -180,7 +198,7 @@
 }
 
 .availability-table tbody td {
-  padding: 1rem;
+  padding: 0.625rem 0.875rem;
   border-bottom: 1px solid #E5E5E7;
   vertical-align: top;
   color: #1D1D1F;
@@ -191,7 +209,7 @@
 }
 
 .availability-table tbody tr:hover {
-  background: #F8F9FA;
+  background: var(--bg-secondary);
 }
 
 .day-cell strong {
@@ -263,7 +281,7 @@
   text-align: center;
   color: #86868B;
   font-style: italic;
-  padding: 2rem;
+  padding: 1.25rem 1.5rem;
 }
 
 .empty-availability i {
@@ -345,7 +363,7 @@
 
 .empty-state p {
   margin: 0 0 0.5rem 0;
-  font-size: 1.2rem;
+  font-size: 1rem;
   font-weight: 600;
   color: #1D1D1F;
 }

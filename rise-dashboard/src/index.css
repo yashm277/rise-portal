@@ -10,11 +10,11 @@ body {
   padding: 0;
   width: 100%;
   height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Inter', 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'Red Hat Text', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #F8F9FA;
-  color: #1D1D1F;
+  background: #FBF8EF;
+  color: #000000;
 }
 
 #root {

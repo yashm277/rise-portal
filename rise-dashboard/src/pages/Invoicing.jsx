@@ -2,10 +2,27 @@ import { useState, useEffect } from 'react';
 import { classAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/shared/Sidebar';
+import BankDetailsBlocker from '../components/shared/BankDetailsBlocker';
+import useBankCheck from '../hooks/useBankCheck';
 import './Invoicing.css';
+
+const getInvoicingWindowInfo = () => {
+  const today = new Date();
+  const currentMonth = today.getMonth();
+  const currentYear = today.getFullYear();
+
+  const endOfCurrentMonth = new Date(currentYear, currentMonth + 1, 0);
+  const windowStart = new Date(endOfCurrentMonth);
+  windowStart.setDate(endOfCurrentMonth.getDate() - 3);
+
+  const isOpen = today >= windowStart;
+
+  return { isOpen, windowStart };
+};
 
 const Invoicing = () => {
   const { user } = useAuth();
+  const { bankMissing, bankChecking } = useBankCheck();
   const [groupedData, setGroupedData] = useState({});
   const [totalClasses, setTotalClasses] = useState(0);
   const [programCount, setProgramCount] = useState(0);
@@ -15,28 +32,51 @@ const Invoicing = () => {
   const [selectedPrograms, setSelectedPrograms] = useState(new Map());
   const [validating, setValidating] = useState(false);
   const [showDiscrepancyModal, setShowDiscrepancyModal] = useState(false);
-  const [currentDiscrepancy, setCurrentDiscrepancy] = useState({ programId: '', classIds: [] });
+  const [currentDiscrepancy, setCurrentDiscrepancy] = useState({ programId: '', classIds: [], isGeneral: false });
   const [discrepancyNote, setDiscrepancyNote] = useState('');
 
+  const { isOpen: invoicingOpen, windowStart } = getInvoicingWindowInfo();
+
   useEffect(() => {
-    loadPendingClasses();
-  }, []);
+    if (!bankChecking && !bankMissing && invoicingOpen) loadPendingClasses();
+    else if (!bankChecking) setLoading(false);
+  }, [bankChecking]);
+
+  const convertISTToUserTimezone = (timeString, dateString) => {
+    if (!timeString || timeString === '-') return timeString;
+
+    try {
+      const cleanTime = timeString.replace(/\s*IST\s*$/, '').trim();
+
+      const dateTime = new Date(`${dateString} ${cleanTime}`);
+
+      const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const userTime = dateTime.toLocaleString('en-US', {
+        timeZone: userTimezone,
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+
+      return userTime;
+    } catch (error) {
+      return timeString;
+    }
+  };
 
   const loadPendingClasses = async () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       if (!user?.email) {
         setError('User email not found. Please log in again.');
         setLoading(false);
         return;
       }
-      
-      console.log(`📋 Fetching pending classes for: ${user.email}`);
-      
+
       const response = await classAPI.getPendingClasses(user.email);
-      
+
       if (response.data) {
         setTotalClasses(response.data.totalClasses || 0);
         setProgramCount(response.data.programCount || 0);
@@ -44,7 +84,6 @@ const Invoicing = () => {
         setGroupedData(response.data.groupedData || {});
       }
     } catch (err) {
-      console.error('❌ Error loading pending classes:', err);
       setError(err.message || 'Failed to load classes. Please try again.');
     } finally {
       setLoading(false);
@@ -55,10 +94,10 @@ const Invoicing = () => {
     if (!dateString) return '-';
     try {
       const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric' 
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
       });
     } catch (error) {
       return dateString;
@@ -68,7 +107,7 @@ const Invoicing = () => {
   const toggleProgramForValidation = (programId) => {
     const programKey = `program-${programId}`;
     const newSelected = new Map(selectedPrograms);
-    
+
     if (newSelected.has(programKey)) {
       newSelected.delete(programKey);
     } else {
@@ -82,7 +121,7 @@ const Invoicing = () => {
         currency: programData.currency
       });
     }
-    
+
     setSelectedPrograms(newSelected);
   };
 
@@ -91,66 +130,57 @@ const Invoicing = () => {
       alert('Please add at least one program to validate.');
       return;
     }
-    
+
     if (!user?.email || !user?.name) {
       alert('Session expired. Please login again.');
       return;
     }
-    
+
     const programCount = selectedPrograms.size;
     let totalClassesCount = 0;
     selectedPrograms.forEach(prog => {
       totalClassesCount += prog.classIds.length;
     });
-    
+
     const confirmed = window.confirm(
-      `Are you sure you want to validate ${programCount} program(s) with ${totalClassesCount} class(es)?\n\nThis will create invoice records for payment processing.`
+      `Are you sure you want to validate ${programCount} program(s) with ${totalClassesCount} class(es)?\n\nThis will create one consolidated invoice for payment processing.`
     );
-    
+
     if (!confirmed) return;
 
     setValidating(true);
     try {
-      console.log(`✅ Validating ${programCount} program(s) with ${totalClassesCount} classes`);
-      console.log(`👤 Mentor: ${user.name} (${user.email})`);
-      
-      let totalValidated = 0;
-      let invoicesCreated = 0;
-      
-      for (const [key, programData] of selectedPrograms) {
-        const response = await classAPI.validateClasses({
-          programId: programData.programId,
-          classIds: programData.classIds,
-          mentorEmail: user.email,
-          mentorName: user.name,
-          completedCount: programData.completedCount || 0,
-          missedCount: programData.missedCount || 0,
-          totalAmount: programData.totalAmount || 0,
-          currency: programData.currency || 'USD'
-        });
-        
-        if (response.data) {
-          totalValidated += response.data.validatedCount || programData.classIds.length;
-          if (response.data.invoiceCreated) {
-            invoicesCreated++;
-          }
+      const programsData = Array.from(selectedPrograms.values()).map(prog => ({
+        programId: prog.programId,
+        classIds: prog.classIds,
+        completedCount: prog.completedCount || 0,
+        missedCount: prog.missedCount || 0,
+        totalAmount: prog.totalAmount || 0,
+        currency: prog.currency || 'USD'
+      }));
+
+      const response = await classAPI.validateAllPrograms({
+        programs: programsData,
+        mentorEmail: user.email,
+        mentorName: user.name
+      });
+
+      if (response.data) {
+        const { totalValidated, totalAmount, currency, invoiceCreated } = response.data;
+
+        let message = `✅ Success!\n\nValidated ${totalValidated} class(es) across ${programCount} program(s).`;
+
+        if (invoiceCreated) {
+          message += `\n\n📄 Created consolidated invoice: ${totalAmount} ${currency}`;
         }
+
+        alert(message);
+
+        setSelectedPrograms(new Map());
+        loadPendingClasses();
       }
-      
-      let message = `✅ Success!\n\nValidated ${totalValidated} class(es) across ${programCount} program(s).`;
-      
-      if (invoicesCreated > 0) {
-        message += `\n\n📄 Created ${invoicesCreated} invoice record(s) for payment processing.`;
-      }
-      
-      alert(message);
-      
-      // Clear selections and reload
-      setSelectedPrograms(new Map());
-      loadPendingClasses();
-      
+
     } catch (err) {
-      console.error('❌ Error validating programs:', err);
       alert(`Error: ${err.message}`);
     } finally {
       setValidating(false);
@@ -158,14 +188,20 @@ const Invoicing = () => {
   };
 
   const raiseDiscrepancy = (programId, classIds) => {
-    setCurrentDiscrepancy({ programId, classIds });
+    setCurrentDiscrepancy({ programId, classIds, isGeneral: false });
+    setDiscrepancyNote('');
+    setShowDiscrepancyModal(true);
+  };
+
+  const raiseGeneralDiscrepancy = () => {
+    setCurrentDiscrepancy({ programId: '', classIds: [], isGeneral: true });
     setDiscrepancyNote('');
     setShowDiscrepancyModal(true);
   };
 
   const closeDiscrepancyModal = () => {
     setShowDiscrepancyModal(false);
-    setCurrentDiscrepancy({ programId: '', classIds: [] });
+    setCurrentDiscrepancy({ programId: '', classIds: [], isGeneral: false });
     setDiscrepancyNote('');
   };
 
@@ -174,25 +210,34 @@ const Invoicing = () => {
       alert('Please enter a description of the issues before submitting.');
       return;
     }
-    
+
     try {
-      console.log(`📝 Submitting discrepancy for Program ${currentDiscrepancy.programId}`);
-      
-      const response = await classAPI.raiseDiscrepancy({
-        programId: currentDiscrepancy.programId,
-        classIds: currentDiscrepancy.classIds,
-        issues: discrepancyNote
-      });
-      
-      closeDiscrepancyModal();
-      
-      const result = response.data;
-      alert(`✅ Discrepancy Submitted!\n\n${result.message}\n\nUpdated ${result.updatedCount} class record(s).`);
-      
-      loadPendingClasses();
-      
+      if (currentDiscrepancy.isGeneral) {
+        const response = await classAPI.raiseGeneralDiscrepancy({
+          email: user.email,
+          name: user.name,
+          issue: discrepancyNote
+        });
+
+        closeDiscrepancyModal();
+
+        const result = response.data;
+        alert(`✅ Discrepancy Submitted!\n\n${result.message}`);
+      } else {
+        const response = await classAPI.raiseDiscrepancy({
+          programId: currentDiscrepancy.programId,
+          classIds: currentDiscrepancy.classIds,
+          issues: discrepancyNote
+        });
+
+        closeDiscrepancyModal();
+
+        const result = response.data;
+        alert(`✅ Discrepancy Submitted!\n\n${result.message}\n\nUpdated ${result.updatedCount} class record(s).`);
+
+        loadPendingClasses();
+      }
     } catch (error) {
-      console.error('❌ Error submitting discrepancy:', error);
       alert(`Error: ${error.message}`);
     }
   };
@@ -206,14 +251,38 @@ const Invoicing = () => {
   return (
     <div className="dashboard-layout">
       <Sidebar />
-      
+
       <div className="main-content">
         <header className="top-bar">
           <h1>Invoicing</h1>
         </header>
 
         <main className="dashboard-content">
-          {/* Date Range Info */}
+          {!bankChecking && bankMissing && (
+            <BankDetailsBlocker featureName="invoicing" />
+          )}
+
+          {!bankMissing && !invoicingOpen && (
+            <div className="invoicing-blocked">
+              <div className="invoicing-blocked-icon">
+                <i className="fas fa-calendar-lock"></i>
+              </div>
+              <h2>Invoicing hasn't begun yet for this cycle</h2>
+              <p>
+                Please come back on{' '}
+                <strong>
+                  {windowStart.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                </strong>{' '}
+                to validate your classes.
+              </p>
+              <span className="invoicing-blocked-note">
+                The validation window opens during the last 4 days of each month.
+              </span>
+            </div>
+          )}
+
+          {!bankMissing && invoicingOpen && <>
+
           {dateRange && (
             <div className="date-range-info">
               <i className="fas fa-calendar-alt"></i>
@@ -221,25 +290,28 @@ const Invoicing = () => {
             </div>
           )}
 
-          {/* Master Validate Button Section */}
           {selectedCount > 0 && (
             <div className="master-validate-section">
               <div className="selection-info">
                 <i className="fas fa-check-square"></i>
-                <span><strong>{selectedCount}</strong> program(s) added for validation</span>
+                <span>
+                  <strong>{selectedCount} of {programCount}</strong> program(s) added for validation
+                  {selectedCount < programCount && (
+                    <span className="requirement-note"> - Add all programs to validate</span>
+                  )}
+                </span>
               </div>
-              <button 
-                className={`btn-master-validate ${validating ? 'btn-disabled' : ''}`}
-                disabled={validating}
+              <button
+                className={`btn-master-validate ${(validating || selectedCount < programCount) ? 'btn-disabled' : ''}`}
+                disabled={validating || selectedCount < programCount}
                 onClick={validateSelectedClasses}
               >
                 <i className="fas fa-check-double"></i>
-                {validating ? 'Validating...' : 'Validate All Selected Programs'}
+                {validating ? 'Validating...' : selectedCount < programCount ? `Add ${programCount - selectedCount} More Program(s)` : 'Validate All Selected Programs'}
               </button>
             </div>
           )}
 
-          {/* Header Summary */}
           <div className="invoicing-header">
             <div className="summary-card">
               <h3>Total Pending Classes</h3>
@@ -251,7 +323,6 @@ const Invoicing = () => {
             </div>
           </div>
 
-          {/* Loading State */}
           {loading && (
             <div className="loading-container">
               <div className="spinner-large"></div>
@@ -259,7 +330,6 @@ const Invoicing = () => {
             </div>
           )}
 
-          {/* Error State */}
           {error && !loading && (
             <div className="error-container">
               <i className="fas fa-exclamation-triangle"></i>
@@ -269,18 +339,23 @@ const Invoicing = () => {
             </div>
           )}
 
-          {/* Empty State */}
           {!loading && !error && totalClasses === 0 && (
             <div className="activity-section">
               <div className="empty-state">
                 <i className="fas fa-check-circle"></i>
                 <p>No pending classes</p>
                 <span>All your classes have been processed!</span>
+                <button
+                  className="btn-add-discrepancy"
+                  onClick={raiseGeneralDiscrepancy}
+                >
+                  <i className="fas fa-exclamation-triangle"></i>
+                  Add Discrepancy
+                </button>
               </div>
             </div>
           )}
 
-          {/* Classes Data */}
           {!loading && !error && totalClasses > 0 && (
             <div id="classesContainer">
               {programIds.map((programId) => {
@@ -293,12 +368,20 @@ const Invoicing = () => {
 
                 return (
                   <div key={programId} className="program-section">
-                    {/* Program header with total amount */}
                     <div className="program-header">
-                      <h3>
-                        <i className="fas fa-folder"></i>
-                        Program ID: {programId}
-                      </h3>
+                      <div className="program-title-group">
+                        <h3>
+                          <i className="fas fa-folder"></i>
+                          Program ID: {programId}
+                        </h3>
+                        {(programData.studentName || programData.studentId) && (
+                          <div className="student-info">
+                            <i className="fas fa-user-graduate"></i>
+                            {programData.studentName && <span className="student-name">{programData.studentName}</span>}
+                            {programData.studentId && <span className="student-id">({programData.studentId})</span>}
+                          </div>
+                        )}
+                      </div>
                       <div className="program-info">
                         <span className="program-badge">{classes.length} class{classes.length !== 1 ? 'es' : ''}</span>
                         <span className="amount-badge">
@@ -308,47 +391,34 @@ const Invoicing = () => {
                       </div>
                     </div>
 
-                    {/* Classes Table */}
                     <div className="classes-table">
                       <div className="table-header">
                         <div className="table-row">
                           <div className="table-cell">Meeting #</div>
-                          <div className="table-cell">Date</div>
                           <div className="table-cell">Start Time</div>
                           <div className="table-cell">End Time</div>
-                          <div className="table-cell">Duration (min)</div>
-                          <div className="table-cell">Recording</div>
-                          <div className="table-cell">Transcript</div>
+                          <div className="table-cell">Status</div>
                         </div>
                       </div>
                       <div className="table-body">
                         {classes.map((cls) => {
                           const hasIssue = cls.mentorConfirmation === 'Issue Raised';
                           const isConfirmed = cls.mentorConfirmation === 'Class Confirmed';
-                          
+
                           return (
-                            <div 
+                            <div
                               key={cls.id}
                               className={`table-row${hasIssue ? ' row-has-issue' : ''}${isConfirmed ? ' row-confirmed' : ''}`}
                             >
                               <div className="table-cell">{cls.meetingNumber || '-'}</div>
-                              <div className="table-cell">{formatDate(cls.date)}</div>
-                              <div className="table-cell">{cls.startTime || '-'}</div>
-                              <div className="table-cell">{cls.endTime || '-'}</div>
-                              <div className="table-cell">{cls.duration || '-'}</div>
                               <div className="table-cell">
-                                {cls.recordingLink ? (
-                                  <a href={cls.recordingLink} target="_blank" rel="noopener noreferrer" className="link-btn">
-                                    <i className="fas fa-video"></i> View
-                                  </a>
-                                ) : '-'}
+                                {cls.startDateTime || '-'}
                               </div>
                               <div className="table-cell">
-                                {cls.transcriptLink ? (
-                                  <a href={cls.transcriptLink} target="_blank" rel="noopener noreferrer" className="link-btn">
-                                    <i className="fas fa-file-alt"></i> View
-                                  </a>
-                                ) : '-'}
+                                {cls.endDateTime || '-'}
+                              </div>
+                              <div className="table-cell">
+                                {cls.meetingStatus || '-'}
                               </div>
                               {hasIssue && (
                                 <div className="table-cell issue-indicator" title={cls.issues}>
@@ -366,7 +436,6 @@ const Invoicing = () => {
                       </div>
                     </div>
 
-                    {/* Action Buttons */}
                     <div className="action-buttons">
                       {hasIssues ? (
                         <>
@@ -374,7 +443,7 @@ const Invoicing = () => {
                             <i className="fas fa-exclamation-circle"></i>
                             <span>This program has pending discrepancies. Resolve issues before validating.</span>
                           </div>
-                          <button 
+                          <button
                             className="btn-discrepancy"
                             onClick={() => raiseDiscrepancy(programId, classes.map(c => c.id))}
                           >
@@ -389,7 +458,7 @@ const Invoicing = () => {
                         </div>
                       ) : (
                         <>
-                          <button 
+                          <button
                             className={`btn-add-validate ${isAdded ? 'btn-added' : ''}`}
                             onClick={() => toggleProgramForValidation(programId)}
                             disabled={isAdded}
@@ -397,7 +466,7 @@ const Invoicing = () => {
                             <i className={`fas ${isAdded ? 'fa-check' : 'fa-plus-circle'}`}></i>
                             {isAdded ? 'Added to Validate' : 'Add to Validate'}
                           </button>
-                          <button 
+                          <button
                             className="btn-discrepancy"
                             onClick={() => raiseDiscrepancy(programId, classes.map(c => c.id))}
                           >
@@ -412,17 +481,30 @@ const Invoicing = () => {
               })}
             </div>
           )}
+
+          </>}
+
+          <div className="invoicing-footer-message">
+            <p>
+              📋 <strong>Billing Period:</strong> Sessions are calculated from the last day of the previous month minus 3 days through the last day of the current month minus 4 days.
+            </p>
+            <p>
+              ⚠️ <strong>Important:</strong> Sessions booked outside the portal or added manually are not eligible for billing. Additionally, sessions without a properly submitted feedback form will not be processed for payment.
+            </p>
+            <p>
+              💬 For any billing issues or questions, please contact support or <a href="/policies-dashboard" style={{ color: 'var(--primary-green)', textDecoration: 'underline' }}>read our policies</a>.
+            </p>
+          </div>
         </main>
       </div>
 
-      {/* Discrepancy Modal */}
       {showDiscrepancyModal && (
         <div className="discrepancy-modal" onClick={closeDiscrepancyModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>
                 <i className="fas fa-exclamation-triangle"></i>
-                Raise Discrepancy
+                {currentDiscrepancy.isGeneral ? 'Add Discrepancy' : 'Raise Discrepancy'}
               </h2>
               <button className="close-btn" onClick={closeDiscrepancyModal}>
                 <i className="fas fa-times"></i>
@@ -430,14 +512,18 @@ const Invoicing = () => {
             </div>
             <div className="modal-body">
               <div className="discrepancy-info">
-                <p>You are raising a discrepancy for:</p>
-                <div className="info-box">
-                  <strong>Program ID:</strong> {currentDiscrepancy.programId}<br />
-                  <strong>Month:</strong> {currentMonth}
-                </div>
-                <p className="instruction">Please add your issues below:</p>
+                {!currentDiscrepancy.isGeneral && (
+                  <>
+                    <p>You are raising a discrepancy for:</p>
+                    <div className="info-box">
+                      <strong>Program ID:</strong> {currentDiscrepancy.programId}<br />
+                      <strong>Month:</strong> {currentMonth}
+                    </div>
+                  </>
+                )}
+                <p className="instruction">Please add your {currentDiscrepancy.isGeneral ? 'issue' : 'issues'} below:</p>
               </div>
-              <textarea 
+              <textarea
                 className="discrepancy-textarea"
                 placeholder="Describe the issues or discrepancies you've found with these classes..."
                 rows="6"

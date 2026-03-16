@@ -16,11 +16,11 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is stored in sessionStorage
     const storedEmail = sessionStorage.getItem('userEmail');
     const storedName = sessionStorage.getItem('userName');
     const storedPicture = sessionStorage.getItem('userPicture');
     const storedRole = sessionStorage.getItem('userRole');
+    const storedEmployeeTypes = sessionStorage.getItem('userEmployeeTypes');
 
     if (storedEmail) {
       setUser({
@@ -28,6 +28,7 @@ export const AuthProvider = ({ children }) => {
         name: storedName,
         picture: storedPicture,
         role: storedRole,
+        employeeTypes: storedEmployeeTypes ? JSON.parse(storedEmployeeTypes) : [],
       });
     }
     setLoading(false);
@@ -36,36 +37,60 @@ export const AuthProvider = ({ children }) => {
   const login = async (googleResponse) => {
     try {
       const { credential } = googleResponse;
-      
-      console.log('🔐 Verifying Google credentials with backend...');
-      
-      // Verify with backend
+
       const response = await authAPI.verifyGoogleToken(credential);
-      
+
       if (response.data.success) {
         const userData = {
           email: response.data.email,
           name: response.data.name,
           picture: response.data.picture,
           role: response.data.role,
+          employeeTypes: response.data.employeeTypes || [],
         };
 
-        console.log(`✅ User authorized: ${userData.email} (Role: ${userData.role})`);
-
-        // Store in sessionStorage (like vanilla JS does)
         sessionStorage.setItem('userEmail', userData.email);
         sessionStorage.setItem('userName', userData.name);
         sessionStorage.setItem('userPicture', userData.picture || '');
         sessionStorage.setItem('userRole', userData.role || '');
+        sessionStorage.setItem('userEmployeeTypes', JSON.stringify(userData.employeeTypes));
 
         setUser(userData);
         return { success: true, name: userData.name, email: userData.email, role: userData.role };
       } else {
-        console.log(`❌ User not authorized: ${response.data.message}`);
         return { success: false, message: response.data.message };
       }
     } catch (error) {
-      console.error('❌ Login error:', error);
+      const errorMessage = error.response?.data?.message || 'Authentication failed. Please try again.';
+      return { success: false, message: errorMessage };
+    }
+  };
+
+  const loginWithEmail = async (email, password) => {
+    try {
+      const response = await authAPI.loginWithEmail(email, password);
+
+      if (response.data.success) {
+        const userData = {
+          email: response.data.email,
+          name: response.data.name,
+          picture: '',
+          role: response.data.role,
+          employeeTypes: response.data.employeeTypes || [],
+        };
+
+        sessionStorage.setItem('userEmail', userData.email);
+        sessionStorage.setItem('userName', userData.name);
+        sessionStorage.setItem('userPicture', '');
+        sessionStorage.setItem('userRole', userData.role || '');
+        sessionStorage.setItem('userEmployeeTypes', JSON.stringify(userData.employeeTypes));
+
+        setUser(userData);
+        return { success: true, name: userData.name, email: userData.email, role: userData.role };
+      } else {
+        return { success: false, message: response.data.message };
+      }
+    } catch (error) {
       const errorMessage = error.response?.data?.message || 'Authentication failed. Please try again.';
       return { success: false, message: errorMessage };
     }
@@ -76,11 +101,12 @@ export const AuthProvider = ({ children }) => {
     sessionStorage.removeItem('userName');
     sessionStorage.removeItem('userPicture');
     sessionStorage.removeItem('userRole');
+    sessionStorage.removeItem('userEmployeeTypes');
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, loginWithEmail, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );

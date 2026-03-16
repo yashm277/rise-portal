@@ -1,205 +1,430 @@
+/* ═══════════════════════════════════════
+   RISE Research — Dashboard Page
+   ═══════════════════════════════════════ */
+
+/* Layout handled globally by rise-theme.css */
 .dashboard-layout {
   display: flex;
   min-height: 100vh;
-  background: #F8F9FA;
-  width: 100%;
+  background: var(--bg-secondary);
 }
 
 .dashboard-content {
   flex: 1;
-  padding: 32px;
-  padding-left: 80px;
-  width: 100%;
   min-height: 100vh;
-  animation: slideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 32px;
+  padding-bottom: 64px;
+  background: var(--bg-secondary);
+  animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+@media (min-width: 1024px) {
+  .dashboard-layout > .dashboard-content {
+    margin-left: var(--sidebar-width);
+    width: calc(100% - var(--sidebar-width));
+    flex: none;
+    padding: 40px 40px 64px;
+  }
+}
+
+@media (max-width: 1023px) {
+  .dashboard-content {
+    padding-left: 72px;
+  }
+}
+
+/* ─── Header ─── */
 .dashboard-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--spacing-xl);
+  align-items: flex-start;
   flex-wrap: wrap;
-  gap: var(--spacing-lg);
-}
-
-.page-title {
-  font-size: 32px;
-  font-weight: 700;
-  color: var(--text-primary);
-  letter-spacing: -0.5px;
-  margin-bottom: var(--spacing-xs);
-}
-
-.page-subtitle {
-  font-size: 16px;
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-
-.header-actions {
-  display: flex;
   gap: var(--spacing-md);
-  align-items: center;
+  margin-bottom: var(--spacing-xl);
 }
 
-.search-input {
-  min-width: 300px;
-}
-
+/* ─── Summary Cards Row ─── */
 .summary-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: var(--spacing-lg);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--spacing-md);
   margin-bottom: var(--spacing-xl);
 }
 
 .summary-card {
+  padding: var(--spacing-lg);
   text-align: center;
-  padding: var(--spacing-xl);
 }
 
 .summary-card h3 {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-  opacity: 0.85;
-  margin-bottom: var(--spacing-md);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
+  margin-bottom: var(--spacing-sm);
+  font-family: var(--font-primary);
 }
 
 .summary-value {
   font-size: 36px;
   font-weight: 700;
-  color: #1c7c54;
+  color: var(--primary-green);
   letter-spacing: -1px;
+  line-height: 1;
+  font-family: var(--font-display);
 }
 
-.students-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: var(--spacing-lg);
-}
-
-.student-card {
-  padding: var(--spacing-lg);
-  cursor: pointer;
-}
-
-.student-header {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-  margin-bottom: var(--spacing-lg);
-  padding-bottom: var(--spacing-lg);
-  border-bottom: 1px solid var(--border-light);
-}
-
-.student-avatar {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #1c7c54 0%, #28a36d 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 24px;
+/* Session count variants */
+.session-count {
+  font-size: 36px;
   font-weight: 700;
-  flex-shrink: 0;
+  letter-spacing: -1px;
+  line-height: 1;
+  font-family: var(--font-display);
+  display: block;
 }
 
-.student-info {
-  flex: 1;
-  min-width: 0;
+.session-count--normal   { color: var(--accent); }
+.session-count--depleted { color: var(--status-red); }
+.session-count--loading  { color: var(--text-secondary); font-size: 28px; }
+
+.session-meta {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 6px;
 }
 
-.student-name {
-  font-size: 18px;
+.session-package {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 3px;
+}
+
+/* ─── Info card colour variants ─── */
+.info-card--warning {
+  background: linear-gradient(135deg, #FFFBF0 0%, #FFF7E6 100%);
+  border-color: rgba(255, 149, 0, 0.4) !important;
+}
+
+.info-card--warning h3 {
+  color: #B85C00;
+  text-transform: none;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.info-card--blue {
+  background: linear-gradient(135deg, #EEF6FD 0%, #E8F2FA 100%);
+  border-color: rgba(21, 101, 192, 0.3) !important;
+}
+
+.info-card--blue h3 {
+  color: #1565C0;
+  text-transform: none;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.info-card--success {
+  background: linear-gradient(135deg, #F0FAF4 0%, #E8F5EC 100%);
+  border-color: rgba(28, 124, 84, 0.3) !important;
+}
+
+.info-card--success h3 {
+  color: var(--primary-green-dark);
+  text-transform: none;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.card-body-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 8px 0 12px;
+  line-height: 1.5;
+}
+
+.card-action-btn {
+  display: inline-block;
+  padding: 8px 14px;
+  color: white;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  font-size: 13px;
   font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.2s;
+  font-family: var(--font-primary);
+}
+
+.card-action-btn:hover {
+  opacity: 0.88;
+  transform: translateY(-1px);
+}
+
+.card-action-btn--warning { background: #C8740A; }
+.card-action-btn--blue    { background: #1565C0; }
+.card-action-btn--success { background: var(--primary-green); }
+.card-action-btn--primary { background: var(--primary-green); }
+
+/* ─── Main student card ─── */
+.dashboard-main-card {
+  padding: var(--spacing-xl);
+  margin-bottom: var(--spacing-md);
+}
+
+.dashboard-main-card h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: var(--spacing-md);
+  font-family: var(--font-primary);
+}
+
+/* ─── Student info row: Program Info + Deadline side by side ─── */
+.student-info-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.student-info-card {
+  padding: var(--spacing-xl);
+}
+
+.student-info-card h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: var(--spacing-md);
+  font-family: var(--font-primary);
+}
+
+.student-info-card p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  line-height: 1.6;
+}
+
+.student-info-card p strong {
   color: var(--text-primary);
-  margin-bottom: var(--spacing-xs);
-  white-space: nowrap;
+  font-weight: 600;
+}
+
+.student-deadline-card {
+  border-left: 3px solid var(--accent);
+}
+
+.deadline-date-value {
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  color: var(--text-primary) !important;
+  margin-bottom: var(--spacing-md) !important;
+  font-family: var(--font-display);
+}
+
+/* Progress bar */
+.progress-bar-container {
+  background: var(--border-light);
+  border-radius: 6px;
+  height: 8px;
+  margin-top: var(--spacing-sm);
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.student-email {
-  font-size: 14px;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.progress-bar-fill {
+  height: 100%;
+  background: var(--primary-green);
+  border-radius: 6px;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.student-details {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
+.progress-bar-fill--complete {
+  background: var(--status-red);
 }
 
-.detail-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 14px;
-}
-
-.detail-label {
-  color: var(--text-secondary);
+.success-message {
+  color: var(--primary-green);
+  font-size: 13px;
+  margin-top: var(--spacing-sm);
   font-weight: 500;
 }
 
-.detail-value {
-  color: var(--text-primary);
-  font-weight: 600;
+.loading-text {
+  color: var(--text-secondary);
+  font-size: 14px;
 }
 
-.badge {
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+.dashboard-nav-hint {
+  color: var(--text-secondary);
+  font-size: 14px;
+  text-align: center;
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--border-light);
 }
 
-.badge.active {
-  background: rgba(28, 124, 84, 0.15);
-  color: #1c7c54;
-}
-
-.badge.inactive {
-  background: rgba(255, 59, 48, 0.15);
-  color: var(--apple-red);
-}
-
-.loading-state {
+/* ─── Deadline warning banner ─── */
+.deadline-warning-banner {
   display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 400px;
-  color: #6E6E73;
-  font-size: 16px;
+  align-items: flex-start;
+  gap: var(--spacing-md);
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-left: 4px solid #f59e0b;
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
 }
 
-/* Responsive Design */
+.deadline-warning-icon {
+  font-size: 20px;
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+
+.deadline-warning-banner strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: #92400e;
+  margin-bottom: 4px;
+}
+
+.deadline-warning-banner p {
+  font-size: 13px;
+  color: #78350f;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ─── Deadline card notes ─── */
+.deadline-note {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: var(--spacing-sm);
+}
+
+/* ─── Parent card ─── */
+.parent-card {
+  padding: var(--spacing-xl);
+  text-align: center;
+}
+
+.parent-card h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-sm);
+  font-family: var(--font-display);
+}
+
+.parent-card > p {
+  color: var(--text-secondary);
+  font-size: 15px;
+  margin-bottom: var(--spacing-lg);
+  line-height: 1.6;
+}
+
+.contact-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 22px;
+  background: var(--accent);
+  color: white;
+  text-decoration: none;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 14px;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.contact-link:hover {
+  opacity: 0.88;
+  transform: translateY(-1px);
+}
+
+/* ─── Upcoming meetings (mentor/team view) ─── */
+.upcoming-card {
+  padding: var(--spacing-xl);
+}
+
+.upcoming-card h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-lg);
+  font-family: var(--font-display);
+}
+
+.empty-meetings {
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 32px 0;
+  font-size: 14px;
+}
+
+/* ─── Default/welcome card ─── */
+.default-card {
+  padding: var(--spacing-xl);
+  text-align: center;
+}
+
+.default-card h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-sm);
+  font-family: var(--font-display);
+}
+
+.default-card p {
+  color: var(--text-secondary);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* ─── Responsive ─── */
 @media (max-width: 768px) {
-  .dashboard-content {
-    padding: 16px;
-    padding-left: 70px;
-  }
-  
   .dashboard-header {
     flex-direction: column;
-    align-items: flex-start;
   }
-  
+
   .page-title {
-    font-size: 28px;
+    font-size: 24px;
   }
-  
+
+  .summary-cards {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .dashboard-main-card,
+  .student-info-card,
+  .upcoming-card,
+  .parent-card,
+  .default-card {
+    padding: var(--spacing-lg);
+  }
+
+  .student-info-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
   .summary-cards {
     grid-template-columns: 1fr;
   }

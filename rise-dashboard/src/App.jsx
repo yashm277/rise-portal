@@ -3,12 +3,25 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Invoicing from './pages/Invoicing';
-import Reports from './pages/Reports';
 import AddSchedule from './pages/AddSchedule';
 import ViewSchedule from './pages/ViewSchedule';
-import './styles/apple-theme.css';
+import BookSchedule from './pages/BookSchedule';
+import BookScheduleWritingCoach from './pages/BookScheduleWritingCoach';
+import BookScheduleProgramManager from './pages/BookScheduleProgramManager';
+import MyMeetings from './pages/MyMeetings';
+import MyStudents from './pages/MyStudents';
+import LeaveApplication from './pages/LeaveApplication';
+import LeaveManagement from './pages/LeaveManagement';
+import BankDetails from './pages/BankDetails';
+import Reschedule from './pages/Reschedule';
+import ChangePassword from './pages/ChangePassword';
+import Policies from './pages/Policies';
+import PoliciesDashboard from './pages/PoliciesDashboard';
+import TermsOfService from './pages/TermsOfService';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import SecurityPolicy from './pages/SecurityPolicy';
+import './styles/rise-theme.css';
 
-// Protected Route Component
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
 
@@ -30,74 +43,152 @@ const ProtectedRoute = ({ children }) => {
   return user ? children : <Navigate to="/login" />;
 };
 
+const NonStudentRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!user) return <Navigate to="/login" />;
+
+  if (user.role === 'Student') {
+    return <Navigate to="/dashboard" />;
+  }
+
+  return children;
+};
+
 function App() {
   return (
     <Router>
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route 
-            path="/dashboard" 
+          <Route
+            path="/dashboard"
             element={
               <ProtectedRoute>
                 <Dashboard />
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/invoicing" 
+          <Route
+            path="/invoicing"
             element={
-              <ProtectedRoute>
+              <NonStudentRoute>
                 <Invoicing />
-              </ProtectedRoute>
-            } 
+              </NonStudentRoute>
+            }
           />
-          <Route 
-            path="/reports" 
-            element={
-              <ProtectedRoute>
-                <Reports />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/scheduling/add" 
+          <Route
+            path="/scheduling/add"
             element={
               <ProtectedRoute>
                 <AddSchedule />
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/scheduling/view" 
+          <Route
+            path="/scheduling/view"
             element={
               <ProtectedRoute>
                 <ViewSchedule />
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/analytics" 
+          <Route
+            path="/scheduling/book"
             element={
               <ProtectedRoute>
-                <div style={{ padding: '40px' }}>
-                  <h1>Analytics Page</h1>
-                  <p>Coming soon...</p>
-                </div>
+                <BookSchedule />
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/settings" 
+          <Route
+            path="/scheduling/book-writing-coach"
             element={
               <ProtectedRoute>
-                <div style={{ padding: '40px' }}>
-                  <h1>Settings Page</h1>
-                  <p>Coming soon...</p>
-                </div>
+                <BookScheduleWritingCoach />
               </ProtectedRoute>
-            } 
+            }
           />
+          <Route
+            path="/scheduling/book-program-manager"
+            element={
+              <ProtectedRoute>
+                <BookScheduleProgramManager />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/my-meetings"
+            element={
+              <ProtectedRoute>
+                <MyMeetings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/my-students"
+            element={
+              <NonStudentRoute>
+                <MyStudents />
+              </NonStudentRoute>
+            }
+          />
+          <Route
+            path="/reschedule"
+            element={
+              <NonStudentRoute>
+                <Reschedule />
+              </NonStudentRoute>
+            }
+          />
+          <Route
+            path="/leave-application"
+            element={
+              <ProtectedRoute>
+                <LeaveApplication />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/leave-management"
+            element={
+              <ProtectedRoute>
+                <LeaveManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/bank-details"
+            element={
+              <NonStudentRoute>
+                <BankDetails />
+              </NonStudentRoute>
+            }
+          />
+          <Route
+            path="/change-password"
+            element={
+              <ProtectedRoute>
+                <ChangePassword />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/policies-dashboard"
+            element={
+              <ProtectedRoute>
+                <PoliciesDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/policies" element={<Policies />} />
+          <Route path="/terms-of-service" element={<TermsOfService />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/security-policy" element={<SecurityPolicy />} />
           <Route path="/" element={<Navigate to="/dashboard" />} />
         </Routes>
       </AuthProvider>

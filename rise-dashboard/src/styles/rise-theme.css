@@ -1,0 +1,498 @@
+/* RISE Research Brand Design System - CSS Variables */
+:root {
+  /* RISE Research Brand Colors */
+  --primary-green: #1c7c54;
+  --primary-green-light: #28a36d;
+  --primary-green-dark: #155f40;
+  --secondary-green: #34C759;
+
+  /* Brand Accent - Brown/Tan */
+  --accent: #83684f;
+  --accent-light: #a0845f;
+  --accent-dark: #6a5340;
+
+  /* Status Colors */
+  --status-red: #FF3B30;
+  --status-orange: #FF9500;
+
+  /* Background Colors - Warm Brand Palette */
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #FBF8EF;
+  --bg-tertiary: #F0EDE4;
+  --bg-elevated: #FFFFFF;
+
+  /* Text Colors */
+  --text-primary: #1D1D1F;
+  --text-secondary: #6B6B6B;
+  --text-tertiary: #9B9B9B;
+
+  /* Border Colors - Warm */
+  --border-light: #E5E2D9;
+  --border-medium: #C8C4BB;
+
+  /* Shadow - Subtle */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+
+  /* Fonts */
+  --font-primary: 'Red Hat Text', sans-serif;
+  --font-display: 'Red Hat Display', sans-serif;
+
+  /* Sidebar */
+  --sidebar-width: 260px;
+
+  /* ─── Compatibility aliases ─── */
+  /* These map older var() names used across pages to the canonical tokens above */
+  --surface: #FFFFFF;
+  --surface-2: #F0EDE4;
+  --surface-3: #E5E2D9;
+  --background: #FBF8EF;
+  --border: #E5E2D9;
+  --primary: #1c7c54;
+  --primary-dark: #155f40;
+  --error: #FF3B30;
+  --success: #1c7c54;
+  --accent-secondary: #a0845f;
+  --accent-hover: #6a5340;
+}
+
+/* ─── Global Reset ─── */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-primary);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+}
+
+/* ─── App Layout ─── */
+/* Shared by all authenticated pages */
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+  background: var(--bg-secondary);
+}
+
+/*
+ * Page content wrapper:
+ * - Desktop: sidebar is persistent (260px), content slides right
+ * - Mobile:  sidebar is an overlay, content only needs hamburger clearance
+ */
+.page-content {
+  flex: 1;
+  min-height: 100vh;
+  background: var(--bg-secondary);
+  padding: 32px;
+  padding-bottom: 64px;
+  overflow-x: hidden;
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (min-width: 1024px) {
+  .page-content {
+    margin-left: var(--sidebar-width);
+    padding: 40px 40px 64px;
+  }
+}
+
+@media (max-width: 1023px) {
+  .page-content {
+    padding-left: 72px; /* clear hamburger button */
+  }
+}
+
+/*
+ * Backward-compat: older pages use .dashboard-layout + .dashboard-content
+ * These overrides make them behave like .app-layout + .page-content
+ */
+/* ─── Page layout containers (all pages) ─── */
+.dashboard-layout,
+.mymeetings-layout,
+.schedule-layout,
+.reschedule-layout,
+.policies-layout {
+  display: flex;
+  min-height: 100vh;
+  background: var(--bg-secondary);
+}
+
+/*
+ * Content containers: set background globally.
+ *
+ * IMPORTANT — margin-left strategy:
+ *   .main-content      → ALWAYS a direct sibling of the Sidebar (top-level).
+ *                        Gets margin-left here globally.
+ *   .mymeetings-content, .reschedule-content → same, always top-level.
+ *
+ *   .dashboard-content → SOMETIMES top-level (Dashboard, PoliciesDashboard),
+ *                        SOMETIMES nested inside .main-content
+ *                        (Invoicing, Reports, ViewSchedule).
+ *                        Do NOT set margin-left here globally — each page's
+ *                        own CSS handles it as needed to avoid double-push.
+ */
+.mymeetings-content,
+.schedule-content,
+.reschedule-content,
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-width: 0;
+  background: var(--bg-secondary);
+}
+
+/* dashboard-content base styles (no margin-left — handled per-page) */
+.dashboard-content {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-secondary);
+}
+
+@media (min-width: 1024px) {
+  /* Sidebar is position:fixed so it's out of flow.
+     Content must be offset by sidebar width AND capped to the remaining width. */
+  .mymeetings-content,
+  .schedule-content,
+  .reschedule-content,
+  .main-content {
+    margin-left: var(--sidebar-width);
+    width: calc(100% - var(--sidebar-width));
+    flex: none;
+  }
+
+  /*
+   * Sticky top-bar used in Invoicing, Reports and ViewSchedule.
+   * .top-bar is always INSIDE .main-content which already has margin-left,
+   * so NO margin-left here — just add comfortable padding.
+   */
+  .top-bar {
+    padding-left: 40px !important;
+    padding-right: 40px !important;
+  }
+}
+
+/* ─── Page Header ─── */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-xl);
+}
+
+.page-header-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.page-title {
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+  margin-bottom: 4px;
+  font-family: var(--font-display);
+  line-height: 1.2;
+}
+
+.page-subtitle {
+  font-size: 15px;
+  color: var(--text-secondary);
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.page-header-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* ─── Button Styles ─── */
+.btn-rise {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  border: none;
+  font-weight: 600;
+  font-size: 14px;
+  font-family: var(--font-primary);
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
+  min-height: 40px;
+  box-sizing: border-box;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.btn-rise:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-rise:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.btn-primary {
+  background: var(--primary-green);
+  color: white;
+}
+.btn-primary:hover { background: var(--primary-green-dark); }
+
+.btn-success {
+  background: var(--primary-green);
+  color: white;
+}
+.btn-success:hover { background: var(--primary-green-dark); }
+
+.btn-danger {
+  background: var(--status-red);
+  color: white;
+}
+
+.btn-secondary {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-light);
+}
+.btn-secondary:hover { background: var(--border-light); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--primary-green);
+  border: 1px solid var(--primary-green);
+}
+.btn-ghost:hover {
+  background: rgba(28, 124, 84, 0.08);
+}
+
+/* ─── Card Styles ─── */
+.card-rise {
+  background: var(--bg-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-light);
+  transition: box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-rise:hover {
+  box-shadow: var(--shadow-md);
+}
+
+/* ─── Input Styles ─── */
+.input-rise {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: var(--font-primary);
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+}
+
+.input-rise:focus {
+  border-color: var(--primary-green);
+  box-shadow: 0 0 0 3px rgba(28, 124, 84, 0.12);
+}
+
+.input-rise::placeholder {
+  color: var(--text-tertiary);
+}
+
+/* ─── Glass Effect ─── */
+.glass {
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-md);
+}
+
+/* ─── Status Badges ─── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.badge-green {
+  background: rgba(28, 124, 84, 0.12);
+  color: var(--primary-green);
+}
+.badge-red {
+  background: rgba(255, 59, 48, 0.1);
+  color: var(--status-red);
+}
+.badge-orange {
+  background: rgba(255, 149, 0, 0.1);
+  color: #C8740A;
+}
+.badge-gray {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+/* ─── Table Styles ─── */
+.rise-table-wrap {
+  overflow-x: auto;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
+  background: var(--bg-primary);
+}
+
+.rise-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.rise-table thead {
+  background: var(--bg-tertiary);
+}
+
+.rise-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border-light);
+  white-space: nowrap;
+}
+
+.rise-table td {
+  padding: 14px 16px;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-light);
+  vertical-align: middle;
+}
+
+.rise-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.rise-table tbody tr:hover {
+  background: var(--bg-secondary);
+}
+
+/* ─── Loading Spinner ─── */
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--border-light);
+  border-top-color: var(--primary-green);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto;
+}
+
+.spinner-lg {
+  width: 52px;
+  height: 52px;
+  border-width: 4px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Empty / Loading states ─── */
+.state-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 32px;
+  text-align: center;
+  color: var(--text-secondary);
+  gap: 12px;
+}
+
+.state-container h3 {
+  font-size: 18px;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.state-container p {
+  font-size: 14px;
+  max-width: 400px;
+  line-height: 1.6;
+}
+
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track { background: var(--bg-secondary); }
+::-webkit-scrollbar-thumb {
+  background: var(--border-medium);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+
+/* ─── Animations ─── */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-fade {
+  animation: fadeIn 0.3s ease;
+}

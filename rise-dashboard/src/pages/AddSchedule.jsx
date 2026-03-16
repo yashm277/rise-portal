@@ -2,671 +2,669 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { scheduleAPI } from '../services/api';
 import Sidebar from '../components/shared/Sidebar';
+import BankDetailsBlocker from '../components/shared/BankDetailsBlocker';
+import useBankCheck from '../hooks/useBankCheck';
 import './AddSchedule.css';
+
+const localDateTimeToUTC = (dateStr, hour, minute, tz) => {
+  const pad = n => String(n).padStart(2, '0');
+  const [y, mo, d] = dateStr.split('-').map(Number);
+  const candidateUTC = new Date(Date.UTC(y, mo - 1, d, hour, minute, 0));
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: tz,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false
+  }).formatToParts(candidateUTC);
+  const p = {};
+  parts.forEach(({ type, value }) => { p[type] = parseInt(value); });
+  const wantedMs  = Date.UTC(y,     mo - 1,     d,     hour,  minute);
+  const gotMs     = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute);
+  return new Date(candidateUTC.getTime() + (wantedMs - gotMs));
+};
+
+const utcToLocalDateStr = (utcDate, tz) =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(utcDate);
+
+const utcToLocalTimeKey = (utcDate, tz) => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false
+  }).formatToParts(utcDate);
+  const p = {};
+  parts.forEach(({ type, value }) => { p[type] = value; });
+  const h = parseInt(p.hour) % 24;
+  return `${String(h).padStart(2, '0')}:${p.minute}`;
+};
+
+const timeKeyToLabel = (key) => {
+  const [h, m] = key.split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const display = h % 12 === 0 ? 12 : h % 12;
+  return `${display}:${String(m).padStart(2, '0')} ${ampm}`;
+};
 
 const AddSchedule = () => {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [isActiveStudent, setIsActiveStudent] = useState(false);
-  const [studentData, setStudentData] = useState(null);
-  const [currentWeek, setCurrentWeek] = useState([]);
-  const [selectedDay, setSelectedDay] = useState(null);
-  const [showTimeSlotModal, setShowTimeSlotModal] = useState(false);
-  const [availability, setAvailability] = useState({});
-  const [submitting, setSubmitting] = useState(false);
-  const [hasExistingSubmission, setHasExistingSubmission] = useState(false);
-  const [existingAvailability, setExistingAvailability] = useState(null);
-  const [userTimezone, setUserTimezone] = useState('UTC');
+  const { bankMissing, bankChecking } = useBankCheck();
 
-  // Generate time slots in user's local timezone (filtering out past slots for today)
-  const generateTimeSlots = (forDate = null) => {
-    const now = new Date();
-    const currentHour = new Date().toLocaleString('en-US', {
-      timeZone: userTimezone,
-      hour12: false,
-      hour: '2-digit'
-    });
-    const currentHourNumber = parseInt(currentHour);
-    
-    // Check if the date is today in user's timezone
-    const isToday = forDate ? (() => {
-      const today = new Date().toLocaleDateString('en-CA', { timeZone: userTimezone }); // YYYY-MM-DD format
-      return forDate === today;
-    })() : false;
-    
-    return Array.from({ length: 24 }, (_, i) => {
-      const utcHour = i;
-      
-      // Create UTC times for this hour slot
-      const startTime = new Date();
-      startTime.setUTCHours(utcHour, 0, 0, 0);
-      const endTime = new Date();
-      endTime.setUTCHours(utcHour + 1, 0, 0, 0);
-      
-      // Get the local hour for this UTC slot
-      const localHour = parseInt(new Intl.DateTimeFormat('en-US', {
-        timeZone: userTimezone,
-        hour: '2-digit',
-        hour12: false
-      }).format(startTime));
-      
-      // Skip past hours for today
-      const isPastSlot = isToday && localHour <= currentHourNumber;
-      
-      // Format in user's timezone
-      const timeFormatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: userTimezone,
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-      });
-      
-      const timezoneFormatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: userTimezone,
-        timeZoneName: 'short'
-      });
-      
-      const startLocal = timeFormatter.format(startTime);
-      const endLocal = timeFormatter.format(endTime);
-      const tzName = timezoneFormatter.formatToParts(startTime).find(part => part.type === 'timeZoneName')?.value || 'Local';
-      
-      return {
-        id: i,
-        utcHour: utcHour, // Keep UTC hour for backend
-        label: `${startLocal} - ${endLocal} ${tzName}`,
-        start: startLocal,
-        end: endLocal,
-        timezone: tzName,
-        isPast: isPastSlot
-      };
-    }).filter(slot => !slot.isPast); // Filter out past slots
+  const [loading, setLoading]           = useState(true);
+  const [error, setError]               = useState(null);
+  const [isActiveMentor, setIsActiveMentor] = useState(false);
+  const [mentorData, setMentorData]     = useState(null);
+  const [userType, setUserType]         = useState(null);
+  const [userTimezone, setUserTimezone] = useState(() => {
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return 'UTC'; }
+  });
+  const [currentDateTime, setCurrentDateTime] = useState(new Date());
+
+  const [submissions, setSubmissions]   = useState([]);
+
+  const [days, setDays]                 = useState([]);
+
+  const [availability, setAvailability] = useState({});
+
+  const [selectedDay, setSelectedDay]   = useState(null);
+
+  const [editMode, setEditMode]         = useState(null);
+  const [editingIndex, setEditingIndex] = useState(null);
+  const [submitting, setSubmitting]     = useState(false);
+
+  const slotDuration = userType === 'Team' ? 15 : 60;
+  const slotsPerDay  = userType === 'Team' ? 96 : 24;
+  const isEditing    = editMode === 'new' || editMode === 'edit';
+  const roleLabel    = userType === 'Writing Coach' ? 'Writing Coach'
+                     : userType === 'Team' ? 'Team' : 'Mentor';
+
+  const allTimeKeys = Array.from({ length: slotsPerDay }, (_, i) => {
+    const totalMin  = i * slotDuration;
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  });
+
+  const getTimeSlotsForDay = (dateStr) => {
+    const todayStr = utcToLocalDateStr(new Date(), userTimezone);
+    if (dateStr !== todayStr) return allTimeKeys;
+    const nowH = parseInt(new Intl.DateTimeFormat('en-US', {
+      timeZone: userTimezone, hour: '2-digit', hour12: false
+    }).format(new Date()));
+    return allTimeKeys.filter(key => parseInt(key.split(':')[0]) > nowH);
   };
 
-  // Generate default time slots (for modal display)
-  const timeSlots = generateTimeSlots();
+  const buildDaysFrom = (startDateStr) => {
+    const todayStr = utcToLocalDateStr(new Date(), userTimezone);
+    const [sy, sm, sd] = startDateStr.split('-').map(Number);
+    return Array.from({ length: 7 }, (_, i) => {
+      const utcNoon = new Date(Date.UTC(sy, sm - 1, sd + i, 12, 0, 0));
+      const dateStr = utcToLocalDateStr(utcNoon, userTimezone);
+      return {
+        dateStr,
+        dayAbbr:   new Intl.DateTimeFormat('en-US', { timeZone: userTimezone, weekday: 'short' }).format(utcNoon),
+        dayNum:    new Intl.DateTimeFormat('en-US', { timeZone: userTimezone, day: 'numeric' }).format(utcNoon),
+        monthAbbr: new Intl.DateTimeFormat('en-US', { timeZone: userTimezone, month: 'short' }).format(utcNoon),
+        displayDate: new Intl.DateTimeFormat('en-US', { timeZone: userTimezone, weekday: 'long', month: 'short', day: 'numeric' }).format(utcNoon),
+        isToday: dateStr === todayStr,
+        isPast:  dateStr < todayStr,
+      };
+    });
+  };
 
-  useEffect(() => {
-    // Detect user's timezone
+  const getNewSubmissionStart = (subs) => {
+    const todayStr = utcToLocalDateStr(new Date(), userTimezone);
+    if (!subs || subs.length === 0) return todayStr;
+    let latest = '';
+    for (const sub of subs) {
+      const end = sub.week?.split(' to ')[1];
+      if (end && end > latest) latest = end;
+    }
+    if (!latest) return todayStr;
+    const [ey, em, ed] = latest.split('-').map(Number);
+    const next = new Date(Date.UTC(ey, em - 1, ed + 1, 12, 0, 0));
+    return utcToLocalDateStr(next, userTimezone);
+  };
+
+  const utcSlotsToAvailability = (utcSlotsRaw) => {
+    let utcSlots;
     try {
-      const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      setUserTimezone(detectedTimezone);
-      console.log(`🌍 Detected user timezone: ${detectedTimezone}`);
-    } catch (error) {
-      console.warn('Could not detect timezone, defaulting to UTC:', error);
-      setUserTimezone('UTC');
-    }
-    
-    if (user?.email) {
-      checkStudentEligibility();
-      // calculateCurrentWeek will be called after eligibility check completes
-    }
-  }, [user]);
+      utcSlots = typeof utcSlotsRaw === 'string' ? JSON.parse(utcSlotsRaw) : utcSlotsRaw;
+    } catch { return {}; }
 
-  const checkStudentEligibility = async () => {
+    const result = {};
+    utcSlots.forEach(slot => {
+      const utcDate = new Date(
+        `${slot.date}T${String(slot.utcHour).padStart(2, '0')}:${String(slot.utcMinute).padStart(2, '0')}:00Z`
+      );
+      const localDate = utcToLocalDateStr(utcDate, userTimezone);
+      const localKey  = utcToLocalTimeKey(utcDate, userTimezone);
+      if (!result[localDate]) result[localDate] = {};
+      result[localDate][localKey] = true;
+    });
+    return result;
+  };
+
+  const buildUTCSlots = () => {
+    const utcSlots = [];
+    days.forEach(day => {
+      const dayAvail = availability[day.dateStr] || {};
+      Object.entries(dayAvail).forEach(([timeKey, selected]) => {
+        if (!selected) return;
+        const [h, m] = timeKey.split(':').map(Number);
+        const utcDate = localDateTimeToUTC(day.dateStr, h, m, userTimezone);
+        utcSlots.push({
+          date:       utcDate.toISOString().split('T')[0],
+          utcHour:    utcDate.getUTCHours(),
+          utcMinute:  utcDate.getUTCMinutes(),
+          duration:   slotDuration,
+        });
+      });
+    });
+    return utcSlots;
+  };
+
+  const parseSubmissionDays = (sub) => {
+    let utcSlots;
+    try {
+      utcSlots = typeof sub.utcSlots === 'string' ? JSON.parse(sub.utcSlots) : sub.utcSlots;
+    } catch { return []; }
+    if (!utcSlots?.length) return [];
+
+    const timeFmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: userTimezone, hour: 'numeric', minute: '2-digit', hour12: true
+    });
+
+    const dayMap = {};
+    utcSlots.forEach(slot => {
+      const utcStart = new Date(`${slot.date}T${String(slot.utcHour).padStart(2, '0')}:${String(slot.utcMinute).padStart(2, '0')}:00Z`);
+      const utcEnd   = new Date(utcStart.getTime() + slot.duration * 60000);
+      const localDate = utcToLocalDateStr(utcStart, userTimezone);
+      if (!dayMap[localDate]) {
+        dayMap[localDate] = {
+          dayAbbr:   new Intl.DateTimeFormat('en-US', { timeZone: userTimezone, weekday: 'short' }).format(utcStart),
+          dayNum:    new Intl.DateTimeFormat('en-US', { timeZone: userTimezone, day: 'numeric' }).format(utcStart),
+          monthAbbr: new Intl.DateTimeFormat('en-US', { timeZone: userTimezone, month: 'short' }).format(utcStart),
+          timeSlots: [],
+        };
+      }
+      dayMap[localDate].timeSlots.push(`${timeFmt.format(utcStart)} – ${timeFmt.format(utcEnd)}`);
+    });
+
+    return Object.keys(dayMap).sort().map(d => dayMap[d]);
+  };
+
+  const checkMentorEligibility = async () => {
     try {
       setLoading(true);
       setError(null);
-      
-      console.log(`🔍 Checking if student ${user.email} is active...`);
-      
-      const response = await scheduleAPI.checkStudentEligibility(user.email);
-      
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const response = await scheduleAPI.checkMentorEligibility(user.email);
       if (response.data.success) {
-        setIsActiveStudent(true);
-        setStudentData(response.data.studentData);
-        
-        // Check if student has already submitted for this week
-        if (response.data.hasExistingSubmission) {
-          setHasExistingSubmission(true);
-          setExistingAvailability(response.data.existingAvailability);
-          console.log('✅ Student has existing submission:', response.data.existingAvailability);
-        } else {
-          setHasExistingSubmission(false);
-          console.log('✅ Student is active, can submit new availability:', response.data.studentData);
-        }
-        
-        // Recalculate the week after setting existing submission data
-        setTimeout(() => calculateCurrentWeek(), 100);
+        setIsActiveMentor(true);
+        setMentorData(response.data.mentorData);
+        setUserType(response.data.userType || 'Mentor');
+        const subs = response.data.submissions || [];
+        setSubmissions(subs);
+        const startStr = getNewSubmissionStart(subs);
+        setDays(buildDaysFrom(startStr));
       } else {
-        setIsActiveStudent(false);
-        setError(response.data.message || 'You are not an active student. Kindly contact admin for support.');
+        setIsActiveMentor(false);
+        setError(response.data.message || 'You are not authorized. Kindly contact admin for support.');
       }
     } catch (err) {
-      console.error('❌ Error checking student eligibility:', err);
-      setError('Failed to verify student status. Please try again.');
+      let msg = 'Failed to verify status. Please try again.';
+      if (err.message === 'API call timed out after 30 seconds')
+        msg = 'Connection timeout. Please check your internet connection and try again.';
+      else if (err.response?.status === 500)
+        msg = 'Server error. The backend service may be down. Please try again later.';
+      else if (err.code === 'ECONNREFUSED' || err.message.includes('Network Error'))
+        msg = 'Cannot connect to server. Please check if the backend service is running.';
+      setError(msg);
     } finally {
       setLoading(false);
     }
   };
 
-  const calculateCurrentWeek = () => {
-    const today = new Date();
-    let targetMondayOffset = 0;
-    
-    // Check if student has existing booking and if we need to skip to next week
-    if (hasExistingSubmission && existingAvailability?.week) {
-      const existingWeekParts = existingAvailability.week.split(' to ');
-      if (existingWeekParts.length === 2) {
-        const existingStartDate = new Date(existingWeekParts[0] + 'T00:00:00Z');
-        const todayUTC = new Date(today.toISOString().split('T')[0] + 'T00:00:00Z');
-        
-        console.log('🔍 Existing booking start date:', existingStartDate.toISOString().split('T')[0]);
-        console.log('🔍 Today\'s date:', todayUTC.toISOString().split('T')[0]);
-        
-        // If today is before the existing booking start date, show next week after existing booking
-        if (todayUTC < existingStartDate) {
-          console.log('⚠️ Today is before existing booking - showing week after existing booking');
-          targetMondayOffset = 7; // Show week after existing booking
-        }
-      }
-    }
-    
-    const currentWeekDays = [];
-    
-    // Find the upcoming Monday (or today if it's Monday)
-    const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-    let daysUntilMonday;
-    
-    if (currentDay === 0) { // Sunday
-      daysUntilMonday = 1;
-    } else if (currentDay === 1) { // Monday
-      daysUntilMonday = 0; // Today is Monday
-    } else { // Tuesday to Saturday
-      daysUntilMonday = 8 - currentDay; // Days until next Monday
-    }
-    
-    // Add the target monday offset for existing bookings
-    daysUntilMonday += targetMondayOffset;
-    
-    // Calculate the target Monday
-    const targetMonday = new Date(today);
-    targetMonday.setUTCDate(today.getUTCDate() + daysUntilMonday);
-    
-    // Generate Monday to Sunday (7 days starting from target Monday)
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(targetMonday);
-      date.setUTCDate(targetMonday.getUTCDate() + i);
-      
-      // Check if this date is today
-      const isToday = date.toISOString().split('T')[0] === today.toISOString().split('T')[0];
-      
-      currentWeekDays.push({
-        date: date,
-        dateString: date.toISOString().split('T')[0], // YYYY-MM-DD
-        displayDate: date.toLocaleDateString('en-US', { 
-          weekday: 'long', 
-          month: 'short', 
-          day: 'numeric',
-          timeZone: 'UTC'
-        }),
-        dayName: date.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' }),
-        isToday: isToday
-      });
-    }
-    
-    setCurrentWeek(currentWeekDays);
-    console.log('📅 Target Monday-Sunday week calculated:', currentWeekDays);
-    console.log('📅 Target Monday offset applied:', targetMondayOffset);
-  };
-
-  const handleDayClick = (day) => {
-    setSelectedDay(day);
-    setShowTimeSlotModal(true);
-  };
-
-  const closeTimeSlotModal = () => {
-    setShowTimeSlotModal(false);
-    setSelectedDay(null);
-  };
-
-  const toggleTimeSlot = (dayDate, slotId) => {
-    setAvailability(prev => {
-      const dayKey = dayDate;
-      const currentDay = prev[dayKey] || {};
-      
-      return {
-        ...prev,
-        [dayKey]: {
-          ...currentDay,
-          [slotId]: !currentDay[slotId]
-        }
-      };
-    });
-  };
-
-  const getAvailabilityText = () => {
-    let consolidatedText = '';
-    
-    currentWeek.forEach(day => {
-      const dayAvailability = availability[day.dateString] || {};
-      const availableSlots = [];
-      
-      timeSlots.forEach(slot => {
-        if (dayAvailability[slot.id]) {
-          // Store both local time (for display) and UTC hour (for backend processing)
-          availableSlots.push({
-            localLabel: slot.label,
-            utcHour: slot.utcHour,
-            timezone: slot.timezone
-          });
-        }
-      });
-      
-      // Only add day info if there are available slots
-      if (availableSlots.length > 0) {
-        consolidatedText += `Date: ${day.displayDate}\n`;
-        consolidatedText += `Day: ${day.dayName}\n`;
-        consolidatedText += `Timezone: ${userTimezone}\n`;
-        consolidatedText += `Available Timings (Local Time):\n`;
-        
-        availableSlots.forEach(slot => {
-          // Convert to UTC for storage while showing local time
-          const utcStart = slot.utcHour.toString().padStart(2, '0') + ':00';
-          const utcEnd = ((slot.utcHour + 1) % 24).toString().padStart(2, '0') + ':00';
-          consolidatedText += ` ${slot.localLabel} (UTC: ${utcStart} - ${utcEnd})\n`;
-        });
-        
-        consolidatedText += '\n';
-      }
-    });
-    
-    return consolidatedText;
-  };
-
   const submitAvailability = async () => {
     try {
       setSubmitting(true);
-      
-      const weekRange = `${currentWeek[0]?.dateString} to ${currentWeek[6]?.dateString}`;
-      const consolidatedAvailability = getAvailabilityText();
-      
-      const submissionData = {
-        programId: studentData.programId,
-        studentName: studentData.studentName,
-        week: weekRange,
-        availability: consolidatedAvailability
-      };
-      
-      console.log('📝 Submitting availability:', submissionData);
-      
-      const response = await scheduleAPI.submitAvailability(submissionData);
-      
+      if (!isActiveMentor || !mentorData?.name || !mentorData?.email) {
+        alert('Mentor data is incomplete. Please refresh and try again.');
+        return;
+      }
+      const utcSlots = buildUTCSlots();
+      if (utcSlots.length === 0) {
+        alert('Please select at least one time slot before submitting.');
+        return;
+      }
+      const weekRange = `${days[0].dateStr} to ${days[6].dateStr}`;
+      const response = await scheduleAPI.submitAvailability({
+        email: user.email, name: mentorData.name, week: weekRange, userType, utcSlots
+      });
       if (response.data.success) {
         alert('✅ Availability submitted successfully!');
-        // Reset availability
-        setAvailability({});
-        // Reload the page to show the submitted availability
         window.location.reload();
       } else {
         throw new Error(response.data.message || 'Failed to submit availability');
       }
-      
     } catch (err) {
-      console.error('❌ Error submitting availability:', err);
-      alert('Error submitting availability. Please try again.');
+      const msg = err.response?.data?.message || err.message || 'Error submitting availability.';
+      if (msg.includes('already submitted')) {
+        alert(`❌ ${msg}\n\nPlease refresh the page to see your existing submission.`);
+        setTimeout(() => window.location.reload(), 2000);
+      } else {
+        alert(`Error: ${msg}`);
+      }
     } finally {
       setSubmitting(false);
     }
   };
 
-  const hasAnyAvailability = () => {
-    return Object.values(availability).some(daySlots => 
-      Object.values(daySlots).some(isSelected => isSelected)
-    );
+  const updateAvailability = async () => {
+    try {
+      setSubmitting(true);
+      const sub = submissions[editingIndex];
+      if (!sub) { alert('Could not find the submission to update. Please refresh.'); return; }
+      const utcSlots = buildUTCSlots();
+      if (utcSlots.length === 0) {
+        alert('Please select at least one time slot before saving.');
+        return;
+      }
+      const response = await scheduleAPI.updateAvailability({
+        email: user.email, name: mentorData.name, week: sub.week, userType, utcSlots
+      });
+      if (response.data.success) {
+        alert('✅ Availability updated successfully!');
+        window.location.reload();
+      } else {
+        throw new Error(response.data.message || 'Failed to update availability');
+      }
+    } catch (err) {
+      alert(`Error: ${err.response?.data?.message || err.message || 'Error updating availability.'}`);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const parseExistingAvailability = () => {
-    console.log('🔍 Student side - existingAvailability object:', existingAvailability);
-    console.log('🔍 Student side - existingAvailability.availability:', existingAvailability?.availability);
-    
-    if (!existingAvailability?.availability) {
-      console.log('❌ Student side - No availability data');
-      return [];
-    }
-    
-    const availabilityText = existingAvailability.availability;
-    console.log('🔍 Student side - Raw availability text:', availabilityText);
-    console.log('🔍 Student side - Text length:', availabilityText.length);
-    
-    const lines = availabilityText.split('\n').filter(line => line.trim());
-    console.log('🔍 Student side - Split lines:', lines);
-    console.log('🔍 Student side - Number of lines:', lines.length);
-    
-    const parsedDays = [];
-    let currentDay = null;
-    let submittedTimezone = 'UTC'; // Default fallback
-    let inTimingsSection = false;
-    
-    lines.forEach((line, index) => {
-      const originalLine = line;
-      line = line.trim();
-      console.log(`🔍 Student Line ${index + 1}:`, `"${originalLine}" -> "${line}"`);
-      
-      if (line.startsWith('Date:')) {
-        console.log('📅 Student - Found date line:', line);
-        if (currentDay) {
-          parsedDays.push(currentDay);
-        }
-        currentDay = {
-          date: line.replace('Date:', '').trim(),
-          day: '',
-          timezone: submittedTimezone,
-          timeSlots: []
-        };
-        inTimingsSection = false;
-      } else if (line.startsWith('Day:')) {
-        console.log('📅 Student - Found day line:', line);
-        if (currentDay) {
-          currentDay.day = line.replace('Day:', '').trim();
-        }
-      } else if (line.startsWith('Timezone:')) {
-        console.log('🌍 Student - Found timezone line:', line);
-        submittedTimezone = line.replace('Timezone:', '').trim();
-        if (currentDay) {
-          currentDay.timezone = submittedTimezone;
-        }
-      } else if (line.startsWith('Available Timings')) {
-        console.log('📋 Student - Found Available Timings header:', line);
-        inTimingsSection = true;
-      } else if (inTimingsSection && currentDay && line.length > 0) {
-        console.log('⏰ Student - Processing potential time slot:', line);
-        
-        if (line.includes('UTC:')) {
-          // Parse the line to extract UTC time and convert to current user's timezone
-          const utcMatch = line.match(/UTC:\s*(\d{2}):00\s*-\s*(\d{2}):00/);
-          if (utcMatch) {
-            const utcStartHour = parseInt(utcMatch[1]);
-            
-            // Convert UTC time to user's current timezone
-            const utcTime = new Date();
-            utcTime.setUTCHours(utcStartHour, 0, 0, 0);
-            
-            const timeFormatter = new Intl.DateTimeFormat('en-US', {
-              timeZone: userTimezone,
-              hour: 'numeric',
-              minute: '2-digit',
-              hour12: true
-            });
-            
-            const timezoneFormatter = new Intl.DateTimeFormat('en-US', {
-              timeZone: userTimezone,
-              timeZoneName: 'short'
-            });
-            
-            const startLocal = timeFormatter.format(utcTime);
-            const endTime = new Date(utcTime.getTime() + 60 * 60 * 1000); // Add 1 hour
-            const endLocal = timeFormatter.format(endTime);
-            const tzName = timezoneFormatter.formatToParts(utcTime).find(part => part.type === 'timeZoneName')?.value || 'Local';
-            
-            currentDay.timeSlots.push(`${startLocal} - ${endLocal} ${tzName}`);
-            console.log('⏰ Student - Converted time slot:', `${startLocal} - ${endLocal} ${tzName}`);
-          } else {
-            // Fallback: Extract just the local time part before (UTC:...)
-            const localTimePart = line.split('(UTC:')[0].trim();
-            currentDay.timeSlots.push(localTimePart);
-            console.log('⏰ Student - Fallback time slot:', localTimePart);
-          }
-        } else if (line.includes('AM') || line.includes('PM') || line.includes(':')) {
-          // Looks like a time slot without UTC info
-          console.log('⏰ Student - Found direct time slot:', line);
-          currentDay.timeSlots.push(line);
-        } else {
-          console.log('❓ Student - Unrecognized time format:', line);
-          currentDay.timeSlots.push(line);
-        }
-      } else if (line.length > 0) {
-        console.log('❓ Student - Unmatched non-empty line:', line);
+  const handleEnterEditMode = (idx) => {
+    const sub = submissions[idx];
+    if (!sub) return;
+    const startStr = sub.week.split(' to ')[0];
+    setDays(buildDaysFrom(startStr));
+    setAvailability(utcSlotsToAvailability(sub.utcSlots));
+    setEditMode('edit');
+    setEditingIndex(idx);
+    setSelectedDay(null);
+  };
+
+  const handleEnterNewMode = () => {
+    const startStr = getNewSubmissionStart(submissions);
+    setDays(buildDaysFrom(startStr));
+    setAvailability({});
+    setEditMode('new');
+    setEditingIndex(null);
+    setSelectedDay(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditMode(null);
+    setEditingIndex(null);
+    setAvailability({});
+    setSelectedDay(null);
+    const startStr = getNewSubmissionStart(submissions);
+    setDays(buildDaysFrom(startStr));
+  };
+
+  const toggleSlot = (dateStr, timeKey) => {
+    setAvailability(prev => ({
+      ...prev,
+      [dateStr]: {
+        ...(prev[dateStr] || {}),
+        [timeKey]: !(prev[dateStr] || {})[timeKey],
       }
-    });
-    
-    if (currentDay) {
-      parsedDays.push(currentDay);
+    }));
+  };
+
+  const clearDay = (dateStr) => {
+    setAvailability(prev => ({ ...prev, [dateStr]: {} }));
+  };
+
+  const hasAnyAvailability = () =>
+    Object.values(availability).some(d => Object.values(d).some(Boolean));
+
+  useEffect(() => {
+    const timeInterval = setInterval(() => setCurrentDateTime(new Date()), 1000);
+    if (user?.email) {
+      const timeout = setTimeout(() => {
+        setLoading(false);
+        setError('Connection timeout. Please refresh the page and try again.');
+      }, 10000);
+      checkMentorEligibility().finally(() => clearTimeout(timeout));
+    } else {
+      setLoading(false);
+      setError('User authentication required. Please log in again.');
     }
-    
-    console.log('✅ Student side - Final parsed availability:', parsedDays);
-    console.log('✅ Student side - Total days parsed:', parsedDays.length);
-    parsedDays.forEach((day, index) => {
-      console.log(`✅ Student Day ${index + 1}: ${day.day} (${day.date}) - ${day.timeSlots.length} slots:`, day.timeSlots);
+    return () => clearInterval(timeInterval);
+  }, [user]);
+
+  const getCurrentDateTime = () =>
+    currentDateTime.toLocaleString('en-US', {
+      timeZone: userTimezone, weekday: 'long', year: 'numeric',
+      month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
     });
-    
-    return parsedDays;
+
+  const getNextAvailableDate = () => {
+    if (submissions.length === 0) return null;
+    let latest = '';
+    for (const sub of submissions) {
+      const end = sub.week?.split(' to ')[1];
+      if (end && end > latest) latest = end;
+    }
+    if (!latest) return null;
+    const [ey, em, ed] = latest.split('-').map(Number);
+    const next = new Date(Date.UTC(ey, em - 1, ed + 1, 12, 0, 0));
+    const day = next.getUTCDate();
+    const suffix = [1,21,31].includes(day) ? 'st' : [2,22].includes(day) ? 'nd' : [3,23].includes(day) ? 'rd' : 'th';
+    return next.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
+               .replace(/^(\d+)/, `$1${suffix}`);
   };
 
   if (loading) {
     return (
       <div className="dashboard-layout">
         <Sidebar />
-        <div className="main-content">
+        <div className="main-content add-schedule-content">
           <div className="loading-container">
             <div className="spinner-large"></div>
-            <p>Checking student eligibility...</p>
+            <p>Checking eligibility...</p>
           </div>
         </div>
       </div>
     );
   }
 
-  if (error || !isActiveStudent) {
+  if (error || !isActiveMentor) {
     return (
       <div className="dashboard-layout">
         <Sidebar />
-        <div className="main-content">
-          <header className="page-header">
-            <h1>Add Schedule</h1>
-          </header>
+        <div className="main-content add-schedule-content">
+          <header className="page-header"><h1>Add {roleLabel} Schedule</h1></header>
           <div className="error-container">
             <i className="fas fa-exclamation-triangle"></i>
             <h3>Access Denied</h3>
-            <p>{error || 'You are not an active student. Kindly contact admin for support.'}</p>
+            <p>{error || 'You are not authorized. Kindly contact admin for support.'}</p>
           </div>
         </div>
       </div>
     );
   }
+
+  if (!bankChecking && bankMissing) {
+    return (
+      <div className="dashboard-layout">
+        <Sidebar />
+        <div className="main-content add-schedule-content">
+          <header className="page-header"><h1>Add {roleLabel} Schedule</h1></header>
+          <div className="dashboard-content">
+            <BankDetailsBlocker featureName="adding your schedule" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const weekLabels = ['This Week', 'Upcoming Week'];
 
   return (
     <div className="dashboard-layout">
       <Sidebar />
-      
-      <div className="main-content">
+
+      <div className="main-content add-schedule-content">
         <header className="page-header">
-          <h1>Add Schedule</h1>
+          <h1>Add {roleLabel} Schedule</h1>
+          <p className="current-datetime">{getCurrentDateTime()}</p>
           <p className="page-subtitle">
-            {hasExistingSubmission 
-              ? 'Your availability for this week has already been submitted' 
-              : 'Select your availability for this week'
-            }
+            {isEditing
+              ? editMode === 'edit'
+                ? `Editing ${weekLabels[editingIndex] || 'availability'} — click any day to adjust its time slots`
+                : 'Adding upcoming week availability — click any day to add time slots'
+              : `Manage your ${roleLabel.toLowerCase()} availability`}
           </p>
         </header>
 
         <div className="dashboard-content">
           <div className="schedule-container">
-          <div className="week-info">
-            <h3>{hasExistingSubmission && existingAvailability?.week && 
-                (() => {
-                  const existingWeekParts = existingAvailability.week.split(' to ');
-                  if (existingWeekParts.length === 2) {
-                    const existingStartDate = new Date(existingWeekParts[0] + 'T00:00:00Z');
-                    const todayUTC = new Date(new Date().toISOString().split('T')[0] + 'T00:00:00Z');
-                    return todayUTC < existingStartDate;
-                  }
-                  return false;
-                })() ? 'Next Available Week' : 'Upcoming Week'}</h3>
-            <p>Monday, {currentWeek[0]?.displayDate} - Sunday, {currentWeek[6]?.displayDate}</p>
-            <p className="timezone-info">Current Timezone: {userTimezone}</p>
-            {hasExistingSubmission && (
-              <p className="submission-status">
-                <i className="fas fa-check-circle"></i>
-                Availability submitted for week: {existingAvailability?.week}
-              </p>
-            )}
-          </div>
 
-          {hasExistingSubmission ? (
-            // Show existing availability in a nice table
-            <div className="existing-availability">
-              <div className="availability-header">
-                <h4>Your Submitted Availability</h4>
-                <p>You have already submitted your availability for this week. Here's what you submitted:</p>
-              </div>
-              
-              <div className="availability-table-container">
-                <table className="availability-table">
-                  <thead>
-                    <tr>
-                      <th>Day</th>
-                      <th>Date</th>
-                      <th>Available Time Slots</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {parseExistingAvailability().map((dayData, index) => (
-                      <tr key={index}>
-                        <td className="day-cell">
-                          <strong>{dayData.day}</strong>
-                        </td>
-                        <td className="date-cell">
-                          {dayData.date}
-                        </td>
-                        <td className="slots-cell">
-                          {dayData.timeSlots.length > 0 ? (
-                            <div className="slots-grid">
-                              {dayData.timeSlots.map((slot, slotIndex) => (
-                                <span key={slotIndex} className="time-slot-badge">
-                                  {slot}
-                                </span>
-                              ))}
+            {!isEditing && (
+              <>
+                {submissions.length === 0 && (
+                  <div className="week-info">
+                    <h3>Your 7-Day Window</h3>
+                    <p>{days[0]?.displayDate} &ndash; {days[6]?.displayDate}</p>
+                    <p className="timezone-info">{userTimezone}</p>
+                  </div>
+                )}
+
+                {submissions.map((sub, idx) => {
+                  const subDays = parseSubmissionDays(sub);
+                  const [weekStart, weekEnd] = sub.week.split(' to ');
+                  return (
+                    <div key={idx} className="existing-availability">
+                      <div className="availability-header">
+                        <div>
+                          <span className="avail-week-label">{weekLabels[idx] || `Week ${idx + 1}`}</span>
+                          <h4>{weekStart} &ndash; {weekEnd}</h4>
+                        </div>
+                        <button className="btn-change-availability" onClick={() => handleEnterEditMode(idx)}>
+                          <i className="fas fa-edit"></i> Edit
+                        </button>
+                      </div>
+                      <div className="day-strip">
+                        {subDays.map((dayData, di) => (
+                          <div key={di} className="day-strip-col">
+                            <div className="day-strip-header">
+                              <span className="ds-abbr">{dayData.dayAbbr}</span>
+                              <span className="ds-num">{dayData.dayNum}</span>
+                              <span className="ds-month">{dayData.monthAbbr}</span>
                             </div>
-                          ) : (
-                            <span className="no-slots">No availability</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="availability-actions">
-                <div className="info-note">
-                  <i className="fas fa-info-circle"></i>
-                  <p>To modify your availability, please contact your program coordinator.</p>
-                </div>
-              </div>
-            </div>
-          ) : (
-            // Show the submission form
-            <>
-              <div className="calendar-table">
-                <div className="calendar-header">
-                  <h4>Click on a day to set your availability</h4>
-                </div>
-                
-                <div className="submission-table-container">
-                  <table className="submission-table">
-                    <thead>
-                      <tr>
-                        <th>Day</th>
-                        <th>Date</th>
-                        <th>Status</th>
-                        <th>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {currentWeek.map((day, index) => (
-                        <tr 
-                          key={day.dateString}
-                          className={`submission-row ${day.isToday ? 'today-row' : ''} ${availability[day.dateString] ? 'has-availability-row' : ''}`}
-                        >
-                          <td className={`day-cell ${day.isToday ? 'today-day' : ''}`}>
-                            <strong>{day.dayName}</strong>
-                          </td>
-                          <td className="date-cell">
-                            {day.displayDate}
-                          </td>
-                          <td className="status-cell">
-                            {availability[day.dateString] && Object.values(availability[day.dateString]).some(Boolean) ? (
-                              <span className="status-badge available">
-                                {Object.values(availability[day.dateString] || {}).filter(Boolean).length} slots selected
-                              </span>
-                            ) : (
-                              <span className="status-badge empty">No availability set</span>
-                            )}
-                          </td>
-                          <td className="action-cell">
-                            <button 
-                              className="set-availability-btn"
-                              onClick={() => handleDayClick(day)}
-                            >
-                              {availability[day.dateString] && Object.values(availability[day.dateString]).some(Boolean) 
-                                ? 'Edit Times' 
-                                : 'Set Times'
+                            <div className="ds-slots">
+                              {dayData.timeSlots.length > 0
+                                ? dayData.timeSlots.map((s, si) => (
+                                    <span key={si} className="ds-slot-pill">{s}</span>
+                                  ))
+                                : <span className="ds-empty">—</span>
                               }
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
 
-              {hasAnyAvailability() && (
+                {submissions.length === 0 && (
+                  <div className="sched-card">
+                    <p className="sched-card-hint">Click a day to add time slots for that day.</p>
+                    <div className="day-selector-strip">
+                      {days.map((day) => {
+                        const slotCount = Object.values(availability[day.dateStr] || {}).filter(Boolean).length;
+                        return (
+                          <button
+                            key={day.dateStr}
+                            className={`day-selector-col ${day.isToday ? 'dsc-today' : ''} ${slotCount > 0 ? 'dsc-has-slots' : ''}`}
+                            onClick={() => setSelectedDay(day)}
+                          >
+                            <span className="dsc-abbr">{day.dayAbbr}</span>
+                            <span className="dsc-num">{day.dayNum}</span>
+                            <span className="dsc-month">{day.monthAbbr}</span>
+                            {slotCount > 0 && <span className="dsc-badge">{slotCount}</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="submit-section">
+                      {hasAnyAvailability() && (
+                        <button className="btn-submit" onClick={submitAvailability} disabled={submitting}>
+                          {submitting ? 'Submitting...' : 'Submit Availability'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {submissions.length > 0 && submissions.length < 2 && (
+                  <div className="add-next-week-section">
+                    <button className="btn-add-next-week" onClick={handleEnterNewMode}>
+                      <i className="fas fa-plus"></i> Add Upcoming Week Availability
+                    </button>
+                  </div>
+                )}
+
+                {submissions.length >= 2 && (
+                  <div className="avail-limit-notice">
+                    <i className="fas fa-info-circle"></i>
+                    You can only add availability for a maximum of 2 weeks at one time. Please wait for your current week submission to expire or all slots to be booked before adding more.
+                  </div>
+                )}
+              </>
+            )}
+
+            {isEditing && (
+              <>
+                <div className="week-info">
+                  <h3>{editMode === 'edit' ? `Editing: ${weekLabels[editingIndex] || 'Week'}` : 'New Upcoming Week'}</h3>
+                  <p>{days[0]?.displayDate} &ndash; {days[6]?.displayDate}</p>
+                  <p className="timezone-info">{userTimezone}</p>
+                </div>
+
+                <div className="sched-card">
+                  <p className="sched-card-hint">
+                    {editMode === 'edit'
+                      ? 'Click a day to edit its slots. Days with slots are highlighted.'
+                      : 'Click a day to add time slots for that day.'}
+                  </p>
+                  <div className="day-selector-strip">
+                    {days.map((day) => {
+                      const slotCount = Object.values(availability[day.dateStr] || {}).filter(Boolean).length;
+                      const locked = editMode === 'edit' && day.isPast;
+                      return (
+                        <button
+                          key={day.dateStr}
+                          className={`day-selector-col ${day.isToday ? 'dsc-today' : ''} ${slotCount > 0 ? 'dsc-has-slots' : ''} ${locked ? 'dsc-locked' : ''}`}
+                          onClick={() => !locked && setSelectedDay(day)}
+                          disabled={locked}
+                          title={locked ? 'This day is in the past and cannot be edited' : undefined}
+                        >
+                          <span className="dsc-abbr">{day.dayAbbr}</span>
+                          <span className="dsc-num">{day.dayNum}</span>
+                          <span className="dsc-month">{day.monthAbbr}</span>
+                          {locked
+                            ? <span className="dsc-lock-icon"><i className="fas fa-lock"></i></span>
+                            : slotCount > 0 && <span className="dsc-badge">{slotCount}</span>
+                          }
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div className="submit-section">
-                  <button 
-                    className="btn-submit"
-                    onClick={submitAvailability}
-                    disabled={submitting}
-                  >
-                    {submitting ? 'Submitting...' : 'Submit Availability'}
+                  <button className="btn-secondary" onClick={handleCancelEdit} disabled={submitting}>
+                    Cancel
                   </button>
+                  {hasAnyAvailability() && (
+                    <button
+                      className="btn-submit"
+                      onClick={editMode === 'edit' ? updateAvailability : submitAvailability}
+                      disabled={submitting}
+                    >
+                      {submitting
+                        ? (editMode === 'edit' ? 'Saving...' : 'Submitting...')
+                        : (editMode === 'edit' ? 'Save Changes' : 'Submit Availability')}
+                    </button>
+                  )}
                 </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
+              </>
+            )}
 
-      {/* Time Slot Selection Modal */}
-      {showTimeSlotModal && selectedDay && (
-        <div className="modal-overlay" onClick={closeTimeSlotModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Select Time Slots</h3>
-              <p>{selectedDay.displayDate} ({selectedDay.dayName})</p>
-              <button className="close-btn" onClick={closeTimeSlotModal}>
-                <i className="fas fa-times"></i>
-              </button>
-            </div>
-            
-            <div className="modal-body">
-              <div className="time-slots-grid">
-                {generateTimeSlots(selectedDay.dateString).map(slot => (
-                  <label key={slot.id} className="time-slot-item">
-                    <input
-                      type="checkbox"
-                      checked={availability[selectedDay.dateString]?.[slot.id] || false}
-                      onChange={() => toggleTimeSlot(selectedDay.dateString, slot.id)}
-                    />
-                    <span className="checkmark"></span>
-                    <span className="slot-label">{slot.label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-            
-            <div className="modal-footer">
-              <button className="btn-secondary" onClick={closeTimeSlotModal}>
-                Done
-              </button>
-            </div>
           </div>
         </div>
-      )}
-        </div>
+
+        {selectedDay && (
+          <div className="modal-overlay" onClick={() => setSelectedDay(null)}>
+            <div className="modal-content ts-modal" onClick={e => e.stopPropagation()}>
+
+              <div className="ts-modal-day-strip">
+                {days.map((day) => {
+                  const isActive  = day.dateStr === selectedDay.dateStr;
+                  const slotCount = Object.values(availability[day.dateStr] || {}).filter(Boolean).length;
+                  const locked    = editMode === 'edit' && day.isPast;
+                  return (
+                    <button
+                      key={day.dateStr}
+                      className={`ts-day-col ${isActive ? 'ts-day-active' : ''} ${slotCount > 0 && !isActive ? 'ts-day-has' : ''} ${locked ? 'ts-day-locked' : ''}`}
+                      onClick={() => !locked && setSelectedDay(day)}
+                      disabled={locked}
+                      title={locked ? 'Past day — cannot be edited' : undefined}
+                    >
+                      <span className="ts-day-abbr">{day.dayAbbr}</span>
+                      <span className="ts-day-num">{day.dayNum}</span>
+                      <span className="ts-day-month">{day.monthAbbr}</span>
+                      {locked
+                        ? <span className="ts-lock-icon"><i className="fas fa-lock"></i></span>
+                        : slotCount > 0 && <span className="ts-day-badge">{slotCount}</span>
+                      }
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="ts-modal-body">
+                <div className="ts-modal-meta">
+                  <span className="ts-tz-label">
+                    <i className="fas fa-globe"></i> {userTimezone}
+                  </span>
+                  <span className="ts-duration-label">
+                    <i className="fas fa-clock"></i>
+                    {userType === 'Team' ? '15 min' : '60 min'} session
+                  </span>
+                </div>
+
+                <div className="ts-select-header">
+                  <p className="ts-select-label">Select time slots</p>
+                  {(() => {
+                    const cnt = Object.values(availability[selectedDay.dateStr] || {}).filter(Boolean).length;
+                    return cnt > 0
+                      ? <button className="ts-clear-day-btn" onClick={() => clearDay(selectedDay.dateStr)}>
+                          Clear day ({cnt})
+                        </button>
+                      : null;
+                  })()}
+                </div>
+
+                <div className="ts-grid">
+                  {getTimeSlotsForDay(selectedDay.dateStr).map(timeKey => {
+                    const isSelected = availability[selectedDay.dateStr]?.[timeKey] || false;
+                    return (
+                      <button
+                        key={timeKey}
+                        className={`ts-pill ${isSelected ? 'ts-pill-selected' : ''}`}
+                        onClick={() => toggleSlot(selectedDay.dateStr, timeKey)}
+                      >
+                        {timeKeyToLabel(timeKey)}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="ts-modal-footer">
+                <button className="btn-secondary" onClick={() => setSelectedDay(null)}>Done</button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
-    );
+    </div>
+  );
 };
 
 export default AddSchedule;

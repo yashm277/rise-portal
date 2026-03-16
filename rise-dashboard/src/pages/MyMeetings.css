@@ -1,0 +1,812 @@
+/* ═══════════════════════════════════════
+   RISE Research — My Meetings Page
+   ═══════════════════════════════════════ */
+
+.mymeetings-layout {
+  display: flex;
+  min-height: 100vh;
+  background: var(--bg-secondary);
+}
+
+.mymeetings-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--bg-secondary);
+}
+
+@media (min-width: 1024px) {
+  .mymeetings-content {
+    margin-left: var(--sidebar-width);
+  }
+}
+
+/* ─── Header ─── */
+.mymeetings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px 16px;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-light);
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+@media (max-width: 1023px) {
+  .mymeetings-header {
+    padding-left: 72px;
+  }
+}
+
+.mymeetings-header > div { flex: 1; }
+
+.page-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  font-family: var(--font-display);
+}
+
+.page-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 6px 0 0;
+}
+
+/* ─── Refresh button ─── */
+.btn-refresh {
+  white-space: nowrap;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-light);
+  padding: 9px 18px;
+  font-size: 13px;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--font-primary);
+}
+
+.btn-refresh:hover:not(:disabled) {
+  background: var(--border-light);
+}
+
+.btn-refresh:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ─── Error banner ─── */
+.error-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 20px 32px 0;
+  padding: 14px 18px;
+  background: rgba(255, 59, 48, 0.06);
+  border: 1px solid rgba(255, 59, 48, 0.25);
+  border-radius: var(--radius-md);
+  color: var(--status-red);
+  gap: var(--spacing-md);
+}
+
+.error-banner p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--status-red);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0;
+  font-weight: 600;
+  font-family: var(--font-primary);
+}
+
+.btn-link:hover { opacity: 0.75; }
+
+/* ─── Loading ─── */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  flex: 1;
+  gap: 14px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  padding: 80px 32px;
+}
+
+/* ─── Meeting summary cards ─── */
+.meeting-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg) 32px;
+  background: var(--bg-secondary);
+}
+
+.summary-card {
+  padding: var(--spacing-md);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.summary-card h3 {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin: 0 0 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  font-family: var(--font-primary);
+}
+
+.summary-count {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--accent);
+  margin: 0;
+  font-family: var(--font-display);
+}
+
+/* ─── Search bar ─── */
+.meeting-search-bar {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-md) 32px 0;
+  position: relative;
+}
+
+.meeting-search-icon {
+  position: absolute;
+  left: 48px;
+  color: #9ca3af;
+  font-size: 14px;
+  pointer-events: none;
+}
+
+.meeting-search-input {
+  width: 100%;
+  max-width: 420px;
+  padding: 9px 36px 9px 34px;
+  border: 1.5px solid var(--border-medium);
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: var(--font-primary);
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  outline: none;
+  transition: border-color 0.18s ease;
+}
+
+.meeting-search-input:focus {
+  border-color: var(--primary-green);
+}
+
+.meeting-search-clear {
+  position: absolute;
+  left: calc(32px + 420px - 34px);
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.meeting-search-clear:hover {
+  color: var(--text-primary);
+}
+
+/* ─── Filter buttons ─── */
+.meeting-filters {
+  display: flex;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md) 32px;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-light);
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  padding: 8px 18px;
+  border: 1.5px solid var(--border-medium);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: var(--font-primary);
+}
+
+.filter-btn:hover {
+  border-color: var(--primary-green);
+  color: var(--primary-green);
+}
+
+.filter-btn.active {
+  background: var(--primary-green);
+  color: white;
+  border-color: var(--primary-green);
+}
+
+.filter-btn-pending:hover {
+  border-color: #d97706;
+  color: #d97706;
+}
+
+.filter-btn-pending.active {
+  background: #d97706;
+  border-color: #d97706;
+  color: white;
+}
+
+/* ─── Meetings container ─── */
+.meetings-container {
+  padding: var(--spacing-md) 24px var(--spacing-lg);
+}
+
+.meeting-section {
+  margin-bottom: var(--spacing-xl);
+}
+
+.section-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-sm);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 2px solid var(--border-light);
+  font-family: var(--font-display);
+}
+
+/* ─── Table ─── */
+.table-wrapper {
+  overflow-x: auto;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
+  background: var(--bg-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.meeting-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.meeting-table thead {
+  background: var(--bg-tertiary);
+}
+
+.meeting-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 700;
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.meeting-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.meeting-table tbody tr:hover {
+  background: var(--bg-secondary);
+}
+
+.meeting-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ─── Status badges ─── */
+.status-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-scheduled {
+  background: rgba(28, 124, 84, 0.1);
+  color: var(--primary-green);
+}
+
+.status-completed {
+  background: rgba(28, 124, 84, 0.08);
+  color: var(--primary-green-dark);
+}
+
+.status-missed {
+  background: rgba(255, 59, 48, 0.1);
+  color: var(--status-red);
+}
+
+.status-not-valid {
+  background: rgba(255, 149, 0, 0.1);
+  color: #B85C00;
+}
+
+/* ─── Empty state ─── */
+.empty-state {
+  text-align: center;
+  padding: 32px 24px;
+  color: var(--text-secondary);
+}
+
+.empty-state h3 {
+  font-size: 17px;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+  font-family: var(--font-display);
+}
+
+.empty-state p {
+  font-size: 14px;
+  line-height: 1.6;
+  max-width: 460px;
+  margin: 0 auto;
+}
+
+/* ─── Postscript notice ─── */
+.mymeetings-postscript {
+  padding: var(--spacing-md) 32px;
+  background: var(--bg-tertiary);
+  border-top: 1px solid var(--border-light);
+}
+
+.mymeetings-postscript p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* ─── Feedback button (in host table) ─── */
+.btn-feedback {
+  padding: 5px 13px;
+  background: var(--primary-green, #16a34a);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-primary);
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+
+.btn-feedback:hover {
+  background: var(--primary-green-dark, #15803d);
+}
+
+/* ─── Feedback status labels (in host table) ─── */
+.feedback-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+.feedback-scheduled {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.feedback-missing {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.feedback-submitted {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.feedback-missed {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+.feedback-pending {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.feedback-invalid {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+/* ─── Feedback modal overlay ─── */
+.feedback-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.feedback-modal {
+  background: var(--bg-primary);
+  border-radius: 14px;
+  width: 100%;
+  max-width: 620px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+}
+
+.feedback-modal-header {
+  padding: 22px 24px 16px;
+  border-bottom: 1px solid var(--border-light);
+  position: relative;
+}
+
+.feedback-modal-header h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+}
+
+.feedback-modal-sub {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.feedback-modal-close {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  background: none;
+  border: none;
+  font-size: 22px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.feedback-modal-close:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+/* ─── Feedback form fields ─── */
+.feedback-form {
+  padding: 20px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.ff-group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.ff-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.45;
+}
+
+.ff-required {
+  color: var(--status-red);
+  margin-left: 2px;
+}
+
+.ff-radio-group {
+  display: flex;
+  gap: 20px;
+}
+
+.ff-radio-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.ff-radio-label input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary-green, #16a34a);
+  cursor: pointer;
+}
+
+.ff-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid var(--border-medium);
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: var(--font-primary);
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  resize: vertical;
+  line-height: 1.5;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.ff-textarea:focus {
+  outline: none;
+  border-color: var(--primary-green, #16a34a);
+}
+
+.ff-select {
+  padding: 9px 12px;
+  border: 1.5px solid var(--border-medium);
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: var(--font-primary);
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.ff-select:focus {
+  outline: none;
+  border-color: var(--primary-green, #16a34a);
+}
+
+.feedback-error {
+  padding: 10px 14px;
+  background: rgba(255, 59, 48, 0.07);
+  border: 1px solid rgba(255, 59, 48, 0.25);
+  border-radius: 8px;
+  color: var(--status-red);
+  font-size: 13px;
+}
+
+.ff-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.ff-btn-cancel {
+  padding: 9px 20px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-primary);
+  transition: background 0.2s;
+}
+
+.ff-btn-cancel:hover:not(:disabled) {
+  background: var(--border-light);
+}
+
+.ff-btn-cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ff-btn-submit {
+  padding: 9px 22px;
+  background: var(--primary-green, #16a34a);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-primary);
+  transition: background 0.2s;
+}
+
+.ff-btn-submit:hover:not(:disabled) {
+  background: var(--primary-green-dark, #15803d);
+}
+
+.ff-btn-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ─── Section divider inside feedback form ─── */
+.ff-section-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 2px;
+}
+
+.ff-section-divider span {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  white-space: nowrap;
+}
+
+.ff-section-divider::before,
+.ff-section-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-light);
+}
+
+/* ─── Feedback success state ─── */
+.feedback-success {
+  padding: 48px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
+
+.feedback-success i {
+  font-size: 48px;
+  color: var(--primary-green, #16a34a);
+}
+
+.feedback-success p {
+  font-size: 15px;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* ─── View Feedback button variant ─── */
+.btn-view-feedback {
+  background: var(--primary-green, #16a34a);
+}
+
+.btn-view-feedback:hover {
+  background: var(--primary-green-dark, #15803d);
+}
+
+/* ─── View Feedback Modal body ─── */
+.feedback-view-body {
+  padding: 20px 24px 28px;
+}
+
+.feedback-view-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 40px 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.feedback-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border-light, #e5e7eb);
+  border-top-color: var(--primary-green, #16a34a);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.feedback-view-not-found {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 0;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.feedback-view-not-found i {
+  font-size: 36px;
+  color: #9ca3af;
+}
+
+.feedback-view-not-found p {
+  font-size: 14px;
+  margin: 0;
+}
+
+.feedback-view-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.feedback-view-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.feedback-view-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.feedback-view-value {
+  font-size: 14px;
+  color: var(--text-primary);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 768px) {
+  .mymeetings-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+  }
+
+  .btn-refresh { width: 100%; }
+
+  .meeting-filters {
+    flex-direction: column;
+    gap: var(--spacing-xs);
+  }
+
+  .filter-btn { width: 100%; text-align: center; }
+
+  .meeting-summary { grid-template-columns: 1fr; }
+
+  .meetings-container { padding: var(--spacing-md); }
+
+  .error-banner {
+    flex-direction: column;
+    margin: var(--spacing-md);
+  }
+}

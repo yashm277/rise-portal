@@ -179,4 +179,4 @@ Vite provides instant HMR - changes reflect immediately without full page reload
 
 ## 📄 License
 
-© 2024 RISE Research. All rights reserved.
+© 2026 RISE Research. All rights reserved.

@@ -1,0 +1,386 @@
+/* ═══════════════════════════════════════
+   RISE Research — Leave Application Page
+   ═══════════════════════════════════════ */
+
+.leave-layout {
+  display: flex;
+  min-height: 100vh;
+  background: var(--bg-secondary);
+}
+
+.leave-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--bg-secondary);
+}
+
+@media (min-width: 1024px) {
+  .leave-content {
+    margin-left: var(--sidebar-width);
+  }
+}
+
+/* ─── Header ─── */
+.leave-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px 16px;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-light);
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+@media (max-width: 1023px) {
+  .leave-header {
+    padding-left: 72px;
+  }
+}
+
+/* ─── Header Notice ─── */
+.leave-notice {
+  width: 100%;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: var(--radius-sm, 6px);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.leave-notice p {
+  margin: 0;
+  font-size: 13px;
+  color: #78350f;
+  line-height: 1.5;
+}
+
+/* ─── Body ─── */
+.leave-body {
+  padding: 24px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ─── Card ─── */
+.leave-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg, 12px);
+  padding: 24px;
+}
+
+.leave-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.leave-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 20px 0;
+}
+
+.leave-card-header .leave-card-title {
+  margin-bottom: 0;
+}
+
+/* ─── Student Info Block ─── */
+.leave-student-info {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--border-light);
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.leave-info-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.leave-info-label {
+  color: var(--text-secondary);
+  font-weight: 500;
+  width: 90px;
+  flex-shrink: 0;
+}
+
+.leave-info-value {
+  color: var(--text-primary);
+}
+
+.leave-program-id {
+  font-family: monospace;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.leave-loading-inline {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.leave-error-inline {
+  color: #dc2626;
+  font-size: 13px;
+}
+
+/* ─── Form ─── */
+.leave-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.leave-form-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.leave-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.leave-form-group label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.leave-form-group input[type="date"],
+.leave-form-group textarea {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm, 6px);
+  padding: 9px 12px;
+  font-size: 14px;
+  color: var(--text-primary);
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+
+.leave-form-group input[type="date"]:focus,
+.leave-form-group textarea:focus {
+  outline: none;
+  border-color: var(--color-accent, #4f46e5);
+}
+
+.leave-form-group textarea {
+  resize: vertical;
+  min-height: 90px;
+}
+
+.leave-form-group:has(input[type="date"]) {
+  min-width: 160px;
+}
+
+.leave-form-group:has(textarea) {
+  width: 100%;
+}
+
+/* ─── Total Days Badge ─── */
+.leave-days-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-accent, #4f46e5);
+  color: #fff;
+  border-radius: var(--radius-md, 8px);
+  padding: 8px 16px;
+  min-width: 60px;
+  margin-bottom: 2px;
+}
+
+.leave-days-number {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.leave-days-label {
+  font-size: 11px;
+  opacity: 0.85;
+  margin-top: 2px;
+}
+
+/* ─── Form Messages ─── */
+.leave-form-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  border-radius: var(--radius-sm, 6px);
+  padding: 10px 14px;
+  font-size: 14px;
+}
+
+.leave-form-success {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #16a34a;
+  border-radius: var(--radius-sm, 6px);
+  padding: 10px 14px;
+  font-size: 14px;
+}
+
+/* ─── Submit Button ─── */
+.leave-submit-btn {
+  align-self: flex-start;
+  background: var(--color-accent, #4f46e5);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm, 6px);
+  padding: 10px 22px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.leave-submit-btn:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.leave-submit-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ─── State Boxes ─── */
+.leave-state-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px 24px;
+  color: var(--text-secondary);
+  font-size: 15px;
+}
+
+.leave-error-box {
+  color: #dc2626;
+}
+
+/* ─── Table ─── */
+.leave-table-wrapper {
+  overflow-x: auto;
+}
+
+.leave-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.leave-table thead tr {
+  background: var(--bg-secondary);
+  border-bottom: 2px solid var(--border-light);
+}
+
+.leave-table th {
+  padding: 12px 14px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.leave-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+.leave-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.leave-table tbody tr:hover {
+  background: var(--bg-secondary);
+}
+
+.col-index {
+  color: var(--text-secondary);
+  font-size: 13px;
+  width: 40px;
+}
+
+.col-program {
+  font-family: monospace;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.col-date {
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.col-days {
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.col-reason {
+  max-width: 220px;
+  font-size: 13px;
+}
+
+.col-status {
+  white-space: nowrap;
+}
+
+.col-note {
+  max-width: 200px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* ─── Status Badge ─── */
+.leave-status-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.leave-status-badge.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.leave-status-badge.approved {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.leave-status-badge.denied {
+  background: #fee2e2;
+  color: #991b1b;
+}

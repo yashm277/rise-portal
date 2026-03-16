@@ -2,49 +2,42 @@
    REPORTS PAGE STYLES
    ======================================== */
 
-/* Layout Container */
-.dashboard-layout {
-  display: flex;
-  min-height: 100vh;
-  background: #F8F9FA;
-}
-
-.main-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  background: #F8F9FA;
-}
-
-/* Top Bar */
+/* Top Bar — margins handled globally by rise-theme.css */
 .top-bar {
-  background: white;
-  padding: 20px 24px;
-  padding-left: 80px;
-  border-bottom: 1px solid #E5E5E7;
+  background: var(--bg-primary);
+  padding: 20px 32px;
+  border-bottom: 1px solid var(--border-light);
   position: sticky;
   top: 0;
   z-index: 50;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
 }
 
 .top-bar h1 {
-  font-size: 28px;
+  font-size: 15px;
   font-weight: 700;
-  color: #1D1D1F;
+  color: var(--text-primary);
   margin: 0;
+  font-family: var(--font-display);
 }
 
 /* Main Content Area */
 .dashboard-content {
   flex: 1;
-  padding: 24px;
-  padding-left: 80px;
   max-width: 1600px;
-  margin: 0 auto;
   width: 100%;
   box-sizing: border-box;
+  padding: 24px 40px 64px;
+}
+
+@media (max-width: 1023px) {
+  /* hamburger button is 56px wide + 16px margin = ~72px clearance needed */
+  .top-bar {
+    padding-left: 72px !important;
+  }
+  .dashboard-content {
+    padding: 24px 24px 64px;
+  }
 }
 
 /* Header Summary Cards */
@@ -57,7 +50,7 @@
 
 .summary-card {
   background: white;
-  padding: 24px;
+  padding: 16px;
   border-radius: 16px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
@@ -69,7 +62,7 @@
 }
 
 .summary-card h3 {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: #86868b;
   text-transform: uppercase;
@@ -78,7 +71,7 @@
 }
 
 .summary-number {
-  font-size: 42px;
+  font-size: 32px;
   font-weight: 700;
   color: #1c7c54;
   margin: 0;
@@ -88,7 +81,7 @@
 /* Loading State */
 .loading-container {
   text-align: center;
-  padding: 80px 20px;
+  padding: 40px 20px;
 }
 
 .spinner-large {
@@ -114,7 +107,7 @@
 /* Error State */
 .error-container {
   text-align: center;
-  padding: 80px 20px;
+  padding: 40px 20px;
   background: white;
   border-radius: 16px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
@@ -164,7 +157,7 @@
 .activity-section {
   background: white;
   border-radius: 16px;
-  padding: 80px 20px;
+  padding: 40px 20px;
   text-align: center;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
@@ -215,7 +208,7 @@
 }
 
 .counselor-header {
-  padding: 24px 28px;
+  padding: 14px 20px;
   background: linear-gradient(135deg, #1c7c54 0%, #28a36d 100%);
   color: white;
   display: flex;
@@ -237,7 +230,7 @@
 }
 
 .counselor-info h3 {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 600;
   margin: 0;
   display: flex;
@@ -246,7 +239,7 @@
 }
 
 .counselor-info i {
-  font-size: 20px;
+  font-size: 15px;
 }
 
 .report-count-badge {
@@ -254,7 +247,7 @@
   color: white;
   padding: 6px 14px;
   border-radius: 20px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   border: 1px solid rgba(255, 255, 255, 0.3);
 }
@@ -281,7 +274,7 @@
 /* Reports List */
 .reports-list {
   padding: 20px;
-  background: #f8f9fa;
+  background: var(--bg-secondary);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -291,7 +284,7 @@
 .report-card {
   background: white;
   border-radius: 12px;
-  padding: 24px;
+  padding: 16px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
   transition: all 0.3s ease;
 }
@@ -311,7 +304,7 @@
 }
 
 .report-header h4 {
-  font-size: 20px;
+  font-size: 15px;
   font-weight: 700;
   color: #1d1d1f;
   margin: 0;
@@ -329,7 +322,7 @@
   color: #1d1d1f;
   padding: 6px 16px;
   border-radius: 20px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -408,9 +401,9 @@
 }
 
 .status-badge {
-  padding: 8px 16px;
+  padding: 4px 10px;
   border-radius: 20px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   display: inline-flex;
   align-items: center;
@@ -428,33 +421,11 @@
 }
 
 /* Responsive Design */
-@media (max-width: 1200px) {
-  .dashboard-content {
-    padding: 20px;
-    padding-left: 80px;
-  }
-  
-  .top-bar {
-    padding: 20px;
-    padding-left: 80px;
-  }
-}
-
 @media (max-width: 768px) {
-  .top-bar {
-    padding: 16px 20px;
-    padding-left: 70px;
-  }
-  
   .top-bar h1 {
-    font-size: 24px;
+    font-size: 22px;
   }
-  
-  .dashboard-content {
-    padding: 16px;
-    padding-left: 70px;
-  }
-  
+
   .reports-header {
     grid-template-columns: 1fr;
   }

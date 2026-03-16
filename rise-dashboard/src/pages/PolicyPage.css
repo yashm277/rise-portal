@@ -1,0 +1,190 @@
+.policy-page {
+  min-height: 100vh;
+  background: white;
+  padding: 0;
+  margin: 0;
+}
+
+.policy-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 60px 40px;
+  background: white;
+}
+
+.policy-container h1 {
+  font-size: 36px;
+  font-weight: 700;
+  color: #1d1d1f;
+  margin: 0 0 16px 0;
+  line-height: 1.2;
+}
+
+.policy-meta {
+  font-size: 14px;
+  color: #3D3D3D;
+  margin: 0 0 40px 0;
+  padding: 16px;
+  background: #F0EDE4;
+  border-left: 4px solid #1c7c54;
+  border-radius: 4px;
+}
+
+.policy-container section {
+  margin-bottom: 40px;
+}
+
+.policy-container h2 {
+  font-size: 28px;
+  font-weight: 600;
+  color: #1d1d1f;
+  margin: 32px 0 16px 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #d2d2d7;
+}
+
+.policy-container h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1d1d1f;
+  margin: 24px 0 12px 0;
+}
+
+.policy-container h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1d1d1f;
+  margin: 16px 0 8px 0;
+}
+
+.policy-container p {
+  font-size: 15px;
+  line-height: 1.7;
+  color: #515154;
+  margin: 0 0 16px 0;
+}
+
+.policy-container ul,
+.policy-container ol {
+  margin: 0 0 16px 0;
+  padding-left: 24px;
+}
+
+.policy-container li {
+  font-size: 15px;
+  line-height: 1.7;
+  color: #515154;
+  margin-bottom: 8px;
+}
+
+.policy-container ul ul,
+.policy-container ul ol,
+.policy-container ol ul,
+.policy-container ol ol {
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+.policy-container strong {
+  color: #1d1d1f;
+  font-weight: 600;
+}
+
+.policy-container a {
+  color: #1c7c54;
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.policy-container a:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+.policy-container code {
+  background: #f5f5f7;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Courier New', monospace;
+  font-size: 14px;
+  color: #1c7c54;
+}
+
+.policy-container table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 14px;
+}
+
+.policy-container th,
+.policy-container td {
+  padding: 12px;
+  text-align: left;
+  border: 1px solid #d2d2d7;
+}
+
+.policy-container th {
+  background: #f5f5f7;
+  font-weight: 600;
+  color: #1d1d1f;
+}
+
+.policy-container td {
+  color: #515154;
+}
+
+.policy-footer {
+  margin-top: 60px;
+  padding-top: 24px;
+  border-top: 2px solid #d2d2d7;
+  font-size: 14px;
+  color: #515154;
+}
+
+.policy-footer p {
+  margin: 8px 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .policy-container {
+    padding: 40px 20px;
+  }
+
+  .policy-container h1 {
+    font-size: 28px;
+  }
+
+  .policy-container h2 {
+    font-size: 24px;
+  }
+
+  .policy-container h3 {
+    font-size: 18px;
+  }
+
+  .policy-container p,
+  .policy-container li {
+    font-size: 14px;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .policy-page {
+    background: white;
+  }
+
+  .policy-container {
+    padding: 0;
+  }
+
+  .policy-container h1,
+  .policy-container h2,
+  .policy-container h3,
+  .policy-container p,
+  .policy-container li {
+    color: black;
+  }
+}

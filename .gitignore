@@ -25,7 +25,8 @@ build/
 
 # Vercel
 .vercel
-
+.claude
 # Keep package-lock.json for consistent installs
 # (Commented out - we want to commit this)
 # package-lock.json
+.claude/settings.local.json

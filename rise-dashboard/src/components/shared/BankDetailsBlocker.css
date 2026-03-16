@@ -1,0 +1,58 @@
+.bank-blocker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 60px 30px;
+  background: linear-gradient(135deg, #fff8f0 0%, #fff3e0 100%);
+  border: 1px solid #f59e0b44;
+  border-radius: 16px;
+  margin: 20px 0;
+  gap: 14px;
+}
+
+.bank-blocker-icon {
+  font-size: 52px;
+  color: #f59e0b;
+  margin-bottom: 4px;
+}
+
+.bank-blocker h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.bank-blocker p {
+  font-size: 15px;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.6;
+  max-width: 440px;
+}
+
+.bank-blocker p strong {
+  color: var(--text-primary);
+}
+
+.bank-blocker-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 10px 24px;
+  background: var(--primary-green, #16a34a);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.bank-blocker-btn:hover {
+  background: var(--primary-green-dark, #15803d);
+}

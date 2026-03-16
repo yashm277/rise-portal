@@ -14,7 +14,6 @@ const Reports = () => {
   const [error, setError] = useState(null);
   const [expandedCounselors, setExpandedCounselors] = useState(new Set());
 
-  // Role-based access control - only "Team" can access
   if (user?.role !== 'Team') {
     return <Navigate to="/dashboard" replace />;
   }
@@ -27,18 +26,15 @@ const Reports = () => {
     try {
       setLoading(true);
       setError(null);
-      
-      console.log('📋 Fetching pending reports...');
-      
+
       const response = await reportsAPI.getPendingReports();
-      
+
       if (response.data) {
         setTotalReports(response.data.totalReports || 0);
         setCounselorCount(response.data.counselorCount || 0);
         setGroupedData(response.data.groupedData || {});
       }
     } catch (err) {
-      console.error('❌ Error loading pending reports:', err);
       setError(err.message || 'Failed to load reports. Please try again.');
     } finally {
       setLoading(false);
@@ -105,14 +101,13 @@ const Reports = () => {
   return (
     <div className="dashboard-layout">
       <Sidebar />
-      
+
       <main className="main-content">
         <div className="top-bar">
           <h1>Student Reports</h1>
         </div>
 
         <div className="dashboard-content">
-          {/* Summary Cards */}
           <div className="reports-header">
             <div className="summary-card">
               <h3>Total Counselors</h3>
@@ -124,7 +119,6 @@ const Reports = () => {
             </div>
           </div>
 
-          {/* Reports by Counselor */}
           {totalReports === 0 ? (
             <div className="activity-section">
               <div className="empty-state">
@@ -137,7 +131,7 @@ const Reports = () => {
             <div className="counselors-list">
               {Object.entries(groupedData).map(([counselorEmail, counselorData]) => (
                 <div key={counselorEmail} className="counselor-section">
-                  <div 
+                  <div
                     className="counselor-header"
                     onClick={() => toggleCounselor(counselorEmail)}
                   >
